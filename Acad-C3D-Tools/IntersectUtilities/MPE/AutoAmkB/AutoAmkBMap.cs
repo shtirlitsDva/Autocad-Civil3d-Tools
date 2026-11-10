@@ -12,6 +12,8 @@ using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 using Autodesk.Civil.DatabaseServices;
 
+using IntersectUtilities.UtilsCommon;
+
 using AcColor = Autodesk.AutoCAD.Colors.Color;
 using AcEntity = Autodesk.AutoCAD.DatabaseServices.Entity;
 
@@ -175,15 +177,183 @@ internal sealed class MapLayer
     public List<MapText> Texts { get; } = new List<MapText>();
 }
 
-/// <summary>The drawing as read for the map, with each distinct LER line description listed once.</summary>
-internal sealed record MapBackground(IReadOnlyList<MapLayer> Layers, IReadOnlyList<LerInfo> LerInfos);
+/// <summary>
+/// The drawing as read for the map, with each distinct LER line description listed once and the blocks that show
+/// their data when clicked.
+/// </summary>
+internal sealed record MapBackground(IReadOnlyList<MapLayer> Layers, IReadOnlyList<LerInfo> LerInfos, IReadOnlyList<MapBlock> Blocks);
 
-internal sealed record LerField(string Label, string Value);
+internal sealed record InfoField(string Label, string Value);
 
 /// <summary>What the map shows when a LER line is clicked: its kind and the fields useful in a review.</summary>
-internal sealed record LerInfo(string Kind, IReadOnlyList<LerField> Fields)
+internal sealed record LerInfo(string Kind, IReadOnlyList<InfoField> Fields)
 {
     public string Key => Kind + "\u001f" + string.Join("\u001f", Fields.Select(field => field.Label + "\u001e" + field.Value));
+}
+
+/// <summary>
+/// A block that shows its data when clicked on the map: its name, the box around what the map draws of it, the
+/// layers that is drawn on, its lines (which the map highlights when the block is selected) and its fields.
+/// </summary>
+internal sealed record MapBlock(
+    string Name,
+    Point2d Min,
+    Point2d Max,
+    IReadOnlyList<string> Layers,
+    IReadOnlyList<MapBlockLines> Lines,
+    IReadOnlyList<InfoField> Fields);
+
+/// <summary>Some of a block's lines: Count lines of a layer, from the layer's line number First.</summary>
+internal sealed record MapBlockLines(string Layer, int First, int Count);
+
+/// <summary>Grows around what the map draws of one block, and notes its lines and the layers it is drawn on.</summary>
+internal sealed class BlockOutline
+{
+    private readonly HashSet<string> _layers = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    private readonly List<MapBlockLines> _lines = new List<MapBlockLines>();
+    private double _minX = double.MaxValue, _minY = double.MaxValue, _maxX = double.MinValue, _maxY = double.MinValue;
+
+    public bool IsEmpty => _layers.Count == 0;
+
+    public Point2d Min => new Point2d(_minX, _minY);
+
+    public Point2d Max => new Point2d(_maxX, _maxY);
+
+    public IReadOnlyList<string> Layers => _layers.ToList();
+
+    public IReadOnlyList<MapBlockLines> Lines => _lines;
+
+    /// <summary>
+    /// Takes in lines just added to a layer, the first of them as line number first there. A block is read in one
+    /// go, so its lines on a layer follow each other and mostly make one stretch.
+    /// </summary>
+    public void IncludeLines(string layer, int first, IReadOnlyList<IReadOnlyList<Point2d>> runs)
+    {
+        Include(layer, runs.SelectMany(run => run));
+
+        int last = _lines.FindLastIndex(lines => lines.Layer.Equals(layer, StringComparison.OrdinalIgnoreCase));
+        if (last >= 0 && _lines[last].First + _lines[last].Count == first)
+        {
+            _lines[last] = _lines[last] with { Count = _lines[last].Count + runs.Count };
+        }
+        else
+        {
+            _lines.Add(new MapBlockLines(layer, first, runs.Count));
+        }
+    }
+
+    public void Include(string layer, IEnumerable<Point2d> points)
+    {
+        foreach (Point2d point in points)
+        {
+            _layers.Add(layer);
+            _minX = Math.Min(_minX, point.X);
+            _minY = Math.Min(_minY, point.Y);
+            _maxX = Math.Max(_maxX, point.X);
+            _maxY = Math.Max(_maxY, point.Y);
+        }
+    }
+}
+
+/// <summary>
+/// Reads what the map shows for a clicked block: its attribute values, a component's designation (the dynamic
+/// property Betegnelse) and the alignment it is assigned to. A block with none of these gets no data.
+/// </summary>
+internal static class BlockInfoReader
+{
+    private const string DesignationProperty = "Betegnelse";
+
+    public static IReadOnlyList<InfoField> Read(BlockReference reference, IEnumerable<AttributeReference> attributes) =>
+        attributes
+            .Select(attribute => Option<InfoField>.Of(new InfoField(Label(attribute.Tag), OneLine(attribute.TextString))))
+            .Append(Designation(reference).Map(text => new InfoField(DesignationProperty, OneLine(text))))
+            .Append(Alignment(reference).Map(name => new InfoField("Alignment", name)))
+            .Values()
+            .Where(field => field.Value.Length > 0)
+            .ToList();
+
+    // Tags are written for the drafter: "TYPE", "Vinkel_1".
+    private static string Label(string tag)
+    {
+        string words = tag.Replace('_', ' ').Trim();
+        bool shouting = words.Length > 1 && words.Any(char.IsLetter) && !words.Any(char.IsLower);
+        return shouting ? words.Substring(0, 1) + words.Substring(1).ToLowerInvariant() : words;
+    }
+
+    private static string OneLine(string text) =>
+        string.Join(" ", text.Split(new[] { ' ', '\t', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries));
+
+    private static Option<string> Designation(BlockReference reference) =>
+        reference.IsDynamicBlock
+            ? Boundary.TryOption(() => reference.ReadDynamicPropertyValue(DesignationProperty)).Bind(text => AmkNullable.Of(text))
+            : Option<string>.Nothing;
+
+    // Property sets live in the extension dictionary, so a block without one is skipped without opening anything.
+    private static Option<string> Alignment(BlockReference reference) =>
+        reference.ExtensionDictionary.IsNull ? Option<string>.Nothing : PropertySetValues.AlignmentOf(reference);
+}
+
+/// <summary>One line of a text as the map draws it: where it starts, on its baseline, and which way it runs.</summary>
+internal sealed record TextLine(Point3d Start, double Height, Vector3d Direction, string Text);
+
+/// <summary>
+/// The lines of a multiline text where AutoCAD lays them out, so wrapped, centred and stacked text sits on the map
+/// as in the drawing. The text of a multiline attribute is not in the database and AutoCAD gives no layout for it;
+/// its lines are then placed from its attachment point, each as wide as its share of the longest line.
+/// </summary>
+internal static class MTextLines
+{
+    // AutoCAD's line pitch at line spacing factor 1, in text heights.
+    private const double LinePitch = 5.0 / 3.0;
+
+    public static IReadOnlyList<TextLine> Of(MText text)
+    {
+        List<TextLine> lines = new List<TextLine>();
+        text.ExplodeFragments((fragment, _) =>
+        {
+            lines.Add(new TextLine(fragment.Location, fragment.CapsHeight, fragment.Direction, fragment.Text));
+            return MTextFragmentCallbackStatus.Continue;
+        });
+        return lines.Count > 0 ? lines : Estimated(text);
+    }
+
+    private static IReadOnlyList<TextLine> Estimated(MText text)
+    {
+        string[] rows = text.Text.Split('\n').Select(row => row.Trim()).ToArray();
+        int longest = rows.Max(row => row.Length);
+        if (longest == 0) return Array.Empty<TextLine>();
+
+        Vector3d along = Vector3d.XAxis.RotateBy(text.Rotation, Vector3d.ZAxis);
+        Vector3d up = Vector3d.YAxis.RotateBy(text.Rotation, Vector3d.ZAxis);
+        double pitch = text.TextHeight * LinePitch * text.LineSpacingFactor;
+        double height = text.TextHeight + (rows.Length - 1) * pitch;
+        (double left, double above) = Anchor(text.Attachment);
+
+        return rows
+            .Select((row, index) => new TextLine(
+                text.Location
+                    - along * (left * text.ActualWidth * row.Length / longest)
+                    + up * (above * height - text.TextHeight - index * pitch),
+                text.TextHeight,
+                along,
+                row))
+            .Where(line => line.Text.Length > 0)
+            .ToList();
+    }
+
+    // The share of a line's width left of the attachment point, and of the text's height above it.
+    private static (double Left, double Above) Anchor(AttachmentPoint attachment) => attachment switch
+    {
+        AttachmentPoint.TopCenter => (0.5, 0.0),
+        AttachmentPoint.TopRight => (1.0, 0.0),
+        AttachmentPoint.MiddleLeft => (0.0, 0.5),
+        AttachmentPoint.MiddleCenter => (0.5, 0.5),
+        AttachmentPoint.MiddleRight => (1.0, 0.5),
+        AttachmentPoint.BottomLeft => (0.0, 1.0),
+        AttachmentPoint.BottomCenter => (0.5, 1.0),
+        AttachmentPoint.BottomRight => (1.0, 1.0),
+        _ => (0.0, 0.0),
+    };
 }
 
 /// <summary>
@@ -233,11 +403,11 @@ internal static class LerInfoReader
                     Specs.Select(spec => Field(set.Value, spec)).Values().ToList()))
                 .FirstOption();
 
-    private static Option<LerField> Field(IReadOnlyDictionary<string, string> values, FieldSpec spec) =>
+    private static Option<InfoField> Field(IReadOnlyDictionary<string, string> values, FieldSpec spec) =>
         values.Lookup(spec.Property)
             .Map(value => value.Trim())
             .Where(value => value.Length > 0 && value != "0")
-            .Map(value => new LerField(
+            .Map(value => new InfoField(
                 spec.Label,
                 spec.UnitProperty
                     .Bind(unit => values.Lookup(unit))
@@ -250,13 +420,17 @@ internal static class LerInfoReader
 /// Reads what is visible in the drawing and its xrefs near the alignments, as the map's background. Visibility
 /// comes from the drawing's own layer table, so a layer that is off or frozen there stays off on the map.
 /// Entities inside an xref already carry its prefix ("Grundkort|Vejkant"). Hatches, points, dimensions and
-/// leaders are left out.
+/// leaders are left out. A block shows the attribute values of each of its references, and the references with
+/// something to tell are listed so the map can show it when one is clicked.
 /// </summary>
 internal sealed class MapDrawing
 {
     private const int MaxNesting = 6;
     private const int MaxTextLength = 80;
     private const double CorridorTestStep = 10.0;
+
+    // A text's length is not measured; this share of its height per character is close enough for a block's box.
+    private const double WidthPerCharacter = 0.6;
 
     private sealed record LayerLook(bool Off, bool Frozen, AcColor Color);
 
@@ -266,6 +440,7 @@ internal sealed class MapDrawing
     private readonly Dictionary<string, MapLayer> _layers = new Dictionary<string, MapLayer>(StringComparer.OrdinalIgnoreCase);
     private readonly List<LerInfo> _lerInfos = new List<LerInfo>();
     private readonly Dictionary<string, int> _lerInfoIndex = new Dictionary<string, int>(StringComparer.Ordinal);
+    private readonly List<MapBlock> _blocks = new List<MapBlock>();
 
     private MapDrawing(Transaction tx, MapCorridor corridor, IReadOnlyDictionary<string, LayerLook> hostLayers)
     {
@@ -282,10 +457,11 @@ internal sealed class MapDrawing
                 MapDrawing reader = new MapDrawing(tx, corridor, HostLayers(db, tx));
                 BlockTable blocks = (BlockTable)tx.GetObject(db.BlockTableId, OpenMode.ForRead);
                 BlockTableRecord modelSpace = (BlockTableRecord)tx.GetObject(blocks[BlockTableRecord.ModelSpace], OpenMode.ForRead);
-                reader.Walk(modelSpace, Matrix3d.Identity, "0", Option<AcColor>.Nothing, 0);
+                reader.Walk(modelSpace, Matrix3d.Identity, "0", Option<AcColor>.Nothing, 0, Option<BlockOutline>.Nothing);
                 return new MapBackground(
                     reader._layers.Values.OrderBy(layer => layer.Name, StringComparer.OrdinalIgnoreCase).ToList(),
-                    reader._lerInfos);
+                    reader._lerInfos,
+                    reader._blocks);
             },
             "Tegningen kunne ikke læses til kortet");
 
@@ -303,7 +479,8 @@ internal sealed class MapDrawing
 
     // As in AutoCAD, an entity on layer 0 inside a block takes the block's layer, and ByBlock takes the block's colour.
     // Some component blocks hold parts with no layer at all; those are treated as on layer 0.
-    private void Walk(BlockTableRecord block, Matrix3d transform, string parentLayer, Option<AcColor> parentColor, int depth)
+    private void Walk(
+        BlockTableRecord block, Matrix3d transform, string parentLayer, Option<AcColor> parentColor, int depth, Option<BlockOutline> outline)
     {
         if (depth > MaxNesting) return;
 
@@ -313,13 +490,16 @@ internal sealed class MapDrawing
             .OfType<AcEntity>()
             .Where(entity => entity.Visible);
 
-        foreach (AcEntity entity in entities)
-        {
-            string layer = entity.Layer.Length == 0 || entity.Layer == "0" ? parentLayer : entity.Layer;
-            LayerLook look = Look(entity, layer);
-            AcColor color = entity.Color.IsByLayer ? look.Color : entity.Color.IsByBlock ? parentColor.OrElse(look.Color) : entity.Color;
-            Boundary.TryOption(() => Add(entity, transform, layer, look, color, depth));
-        }
+        foreach (AcEntity entity in entities) Place(entity, transform, parentLayer, parentColor, depth, outline);
+    }
+
+    private void Place(
+        AcEntity entity, Matrix3d transform, string parentLayer, Option<AcColor> parentColor, int depth, Option<BlockOutline> outline)
+    {
+        string layer = entity.Layer.Length == 0 || entity.Layer == "0" ? parentLayer : entity.Layer;
+        LayerLook look = Look(entity, layer);
+        AcColor color = entity.Color.IsByLayer ? look.Color : entity.Color.IsByBlock ? parentColor.OrElse(look.Color) : entity.Color;
+        Boundary.TryOption(() => Add(entity, transform, layer, look, color, depth, outline));
     }
 
     private LayerLook Look(AcEntity entity, string layer) =>
@@ -329,29 +509,90 @@ internal sealed class MapDrawing
                 .Map(own => new LayerLook(own.IsOff, own.IsFrozen, own.Color))
                 .OrElse(new LayerLook(false, false, AcColor.FromColorIndex(ColorMethod.ByAci, 7))));
 
-    private bool Add(AcEntity entity, Matrix3d transform, string layer, LayerLook look, AcColor color, int depth)
+    // AutoCAD draws an attribute from the reference, which holds its value; the definition inside the block only
+    // holds the prompt text, and is drawn only when it is constant.
+    private bool Add(
+        AcEntity entity, Matrix3d transform, string layer, LayerLook look, AcColor color, int depth, Option<BlockOutline> outline)
     {
         bool shown = !look.Off && !look.Frozen;
         switch (entity)
         {
             case BlockReference reference when !look.Frozen:
-                BlockTableRecord definition = (BlockTableRecord)_tx.GetObject(reference.BlockTableRecord, OpenMode.ForRead);
-                bool unresolvedXref = (definition.IsFromExternalReference || definition.IsFromOverlayReference) && !definition.IsResolved;
-                if (!unresolvedXref) Walk(definition, transform * reference.BlockTransform, layer, Option<AcColor>.Of(color), depth + 1);
+                AddBlock(reference, transform, layer, color, depth, outline);
                 break;
             case Ray or Xline:
                 break;
             case Curve curve when shown:
-                AddLine(layer, color, CurvePoints(curve).Select(point => point.TransformBy(transform)).ToList(), curve);
+                AddLine(layer, color, CurvePoints(curve).Select(point => point.TransformBy(transform)).ToList(), curve, outline);
+                break;
+            case AttributeDefinition definition when !definition.Constant || definition.Invisible:
+                break;
+            case AttributeReference attribute when attribute.Invisible:
+                break;
+            case AttributeReference attribute when shown && attribute.IsMTextAttribute:
+                using (MText content = attribute.MTextAttribute)
+                {
+                    AddMText(layer, color, content, transform, outline);
+                }
                 break;
             case DBText text when shown:
-                AddText(layer, color, text.Position, text.Height, text.Rotation, text.TextString, transform);
+                AddText(layer, color, new TextLine(text.Position, text.Height, Along(text.Rotation), text.TextString), transform, outline);
                 break;
             case MText text when shown:
-                AddText(layer, color, text.Location, text.TextHeight, text.Rotation, text.Text, transform);
+                AddMText(layer, color, text, transform, outline);
                 break;
         }
         return true;
+    }
+
+    private static Vector3d Along(double rotation) => Vector3d.XAxis.RotateBy(rotation, Vector3d.ZAxis);
+
+    // The outermost block that is not an xref is the one a click selects; blocks nested in it are part of it. Its
+    // attributes are stored in the space the reference is in, so they are placed there and not inside the block.
+    private void AddBlock(
+        BlockReference reference, Matrix3d transform, string layer, AcColor color, int depth, Option<BlockOutline> enclosing)
+    {
+        BlockTableRecord definition = (BlockTableRecord)_tx.GetObject(reference.BlockTableRecord, OpenMode.ForRead);
+        bool xref = definition.IsFromExternalReference || definition.IsFromOverlayReference;
+        if (xref && !definition.IsResolved) return;
+
+        Option<BlockOutline> own = xref || enclosing.IsSome() ? Option<BlockOutline>.Nothing : Option<BlockOutline>.Of(new BlockOutline());
+        Option<BlockOutline> outline = enclosing.IsSome() ? enclosing : own;
+
+        Walk(definition, transform * reference.BlockTransform, layer, Option<AcColor>.Of(color), depth + 1, outline);
+
+        List<AttributeReference> attributes = reference.AttributeCollection.Cast<ObjectId>()
+            .Select(id => Boundary.TryOption(() => _tx.GetObject(id, OpenMode.ForRead)))
+            .Values()
+            .OfType<AttributeReference>()
+            .ToList();
+        foreach (AttributeReference attribute in attributes.Where(attribute => attribute.Visible))
+        {
+            Place(attribute, transform, layer, Option<AcColor>.Of(color), depth + 1, outline);
+        }
+
+        own.Where(drawn => !drawn.IsEmpty).Switch(drawn => AddBlockInfo(reference, definition, attributes, drawn), () => { });
+    }
+
+    private void AddBlockInfo(
+        BlockReference reference, BlockTableRecord definition, IReadOnlyList<AttributeReference> attributes, BlockOutline drawn)
+    {
+        IReadOnlyList<InfoField> fields = BlockInfoReader.Read(reference, attributes);
+        if (fields.Count == 0) return;
+
+        // A dynamic block's reference points at an anonymous copy ("*U877"); the name is on the block it was made from.
+        string name = reference.IsDynamicBlock
+            ? ((BlockTableRecord)_tx.GetObject(reference.DynamicBlockTableRecord, OpenMode.ForRead)).Name
+            : definition.Name;
+        _blocks.Add(new MapBlock(name, drawn.Min, drawn.Max, drawn.Layers, drawn.Lines, fields));
+    }
+
+    private void AddMText(string layer, AcColor color, MText text, Matrix3d transform, Option<BlockOutline> outline)
+    {
+        Point3d at = text.Location.TransformBy(transform);
+        if (!_corridor.Near(at.X, at.Y)) return;
+
+        foreach (TextLine line in MTextLines.Of(text)) AddText(layer, color, line, transform, outline);
     }
 
     private IReadOnlyList<Point3d> CurvePoints(Curve curve) => curve switch
@@ -408,7 +649,7 @@ internal sealed class MapDrawing
 
     // Keeps the runs of segments that come near an alignment, testing every 10 m along each segment. The LER data
     // is read only for lines that made it onto the map.
-    private void AddLine(string layer, AcColor color, IReadOnlyList<Point3d> points, Curve curve)
+    private void AddLine(string layer, AcColor color, IReadOnlyList<Point3d> points, Curve curve, Option<BlockOutline> outline)
     {
         List<IReadOnlyList<Point2d>> runs = new List<IReadOnlyList<Point2d>>();
         List<Point2d> run = new List<Point2d>();
@@ -430,7 +671,10 @@ internal sealed class MapDrawing
         if (runs.Count == 0) return;
 
         Option<int> info = LerInfoReader.Read(curve).Map(IndexOf);
-        LayerFor(layer, color).Lines.AddRange(runs.Select(part => new MapLine(part, info)));
+        MapLayer target = LayerFor(layer, color);
+        int first = target.Lines.Count;
+        target.Lines.AddRange(runs.Select(part => new MapLine(part, info)));
+        outline.Switch(drawn => drawn.IncludeLines(layer, first, runs), () => { });
     }
 
     private int IndexOf(LerInfo info)
@@ -455,18 +699,26 @@ internal sealed class MapDrawing
         return false;
     }
 
-    private void AddText(string layer, AcColor color, Point3d position, double height, double rotation, string text, Matrix3d transform)
+    private void AddText(string layer, AcColor color, TextLine line, Matrix3d transform, Option<BlockOutline> outline)
     {
-        Point3d at = position.TransformBy(transform);
-        string trimmed = text.Trim();
-        if (trimmed.Length == 0 || !_corridor.Near(at.X, at.Y)) return;
+        Point3d at = line.Start.TransformBy(transform);
+        string trimmed = line.Text.Trim();
+        Vector3d along = line.Direction.TransformBy(transform);
+        if (trimmed.Length == 0 || along.Length < 1e-9 || !_corridor.Near(at.X, at.Y)) return;
 
-        Vector3d xAxis = Vector3d.XAxis.TransformBy(transform);
-        LayerFor(layer, color).Texts.Add(new MapText(
-            new Point2d(at.X, at.Y),
-            height * xAxis.Length,
-            rotation + Math.Atan2(xAxis.Y, xAxis.X),
-            trimmed.Length > MaxTextLength ? trimmed.Substring(0, MaxTextLength) : trimmed));
+        string text = trimmed.Length > MaxTextLength ? trimmed.Substring(0, MaxTextLength) : trimmed;
+        double height = line.Height * along.Length / line.Direction.Length;
+        Point2d start = new Point2d(at.X, at.Y);
+        LayerFor(layer, color).Texts.Add(new MapText(start, height, Math.Atan2(along.Y, along.X), text));
+
+        outline.Switch(
+            drawn =>
+            {
+                Vector2d run = new Vector2d(along.X, along.Y).GetNormal() * (height * WidthPerCharacter * text.Length);
+                Vector2d rise = run.GetPerpendicularVector().GetNormal() * height;
+                drawn.Include(layer, new[] { start, start + run, start + rise, start + run + rise });
+            },
+            () => { });
     }
 
     // A layer takes the colour of the first entity found on it.
@@ -556,7 +808,7 @@ internal sealed record MapWritten(string Path, PreviousMap Previous, Option<stri
 /// <summary>
 /// Writes the AUTOAMKB map: one HTML file that opens in a browser without AutoCAD. It shows the drawing around the
 /// alignments with every finding under the same ID as in the Excel file, and the car-passage bands of the
-/// narrow-road check; clicking a LER line shows its LER data. In the map, Montagehul B can be changed (globally or
+/// narrow-road check; clicking a LER line shows its LER data, and clicking a block its attributes. In the map, Montagehul B can be changed (globally or
 /// per alignment) and the narrow roads are redone from the measurements stored here; findings can be marked as not
 /// a problem; the map saves its own state and writes the final Excel file.
 /// </summary>
@@ -624,6 +876,9 @@ internal static class AutoAmkBMap
     // The default encoder escapes <, > and & as well as non-ASCII, so the JSON is safe inside a <script> element.
     // LER data goes in as one string table and one list of distinct line descriptions; a line refers to its
     // description by index (-1 for none). Values repeat a lot, so this keeps it to a fraction of plain text.
+    // A block's name and fields are in the same string table; it lists its box and the layers it is drawn on by
+    // their index, so the page can leave it alone when all of them are switched off, and its lines as layer index,
+    // first line and line count, for highlighting them.
     private static string DataJson(AmkReport report, MapBackground background, Point2d origin)
     {
         Dictionary<string, AlignmentTrace> traces = report.Traces
@@ -641,6 +896,25 @@ internal static class AutoAmkBMap
                 .ToArray())
             .ToArray();
 
+        IReadOnlyDictionary<string, int> layerIndex = background.Layers
+            .Select((layer, index) => (layer.Name, index))
+            .ToDictionary(layer => layer.Name, layer => layer.index, StringComparer.OrdinalIgnoreCase);
+        // Listed here and not while the JSON is written: by then the string table has already gone out.
+        var blocks = background.Blocks
+            .Select(block => new
+            {
+                n = strings.Of(block.Name),
+                b = new[] { X(block.Min), Y(block.Min), X(block.Max), Y(block.Max) },
+                l = block.Layers.Select(name => layerIndex.Lookup(name)).Values().ToArray(),
+                r = block.Lines
+                    .SelectMany(lines => layerIndex.Lookup(lines.Layer)
+                        .Map(index => new[] { index, lines.First, lines.Count })
+                        .OrElse(Array.Empty<int>()))
+                    .ToArray(),
+                f = block.Fields.SelectMany(field => new[] { strings.Of(field.Label), strings.Of(field.Value) }).ToArray(),
+            })
+            .ToArray();
+
         // runId comes first: the page finds it in a saved copy of itself to tell whether that copy is this run.
         return JsonSerializer.Serialize(new
         {
@@ -653,7 +927,8 @@ internal static class AutoAmkBMap
             excel = ExcelTexts(report),
             lerStrings = strings.Texts,
             lerInfos,
-            layers = background.Layers.Select(layer => new
+            blocks,
+            layers =background.Layers.Select(layer => new
             {
                 name = layer.Name,
                 rgb = layer.Colour,

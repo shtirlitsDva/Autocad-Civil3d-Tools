@@ -90,7 +90,7 @@ h1 { font-size: 17px; margin: 0; font-weight: 700; letter-spacing: .01em; }
 .mark .state { font-size: 12.5px; color: var(--muted); }
 .mark .state.check { color: var(--warn); }
 #info .top { display: flex; align-items: baseline; gap: 10px; }
-#info .id { font: 700 18px var(--mono); }
+#info .id { font: 700 18px var(--mono); min-width: 0; overflow-wrap: anywhere; }
 #info .x { margin-left: auto; background: none; border: 0; color: var(--muted); font-size: 18px; cursor: pointer; }
 #info .kind { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; margin: 4px 0 8px; }
 #info dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 3px 12px; margin: 0; font-size: 13px; }
@@ -430,17 +430,21 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     });
     return best;
   }
+  // The card of a LER line or a block: a title, a line saying where it is from, and label/value pairs as indices into lerStrings
+  function showCard(title, kind, pairs) {
+    var rows = '', info = document.getElementById('info');
+    for (var i = 0; i + 1 < pairs.length; i += 2) { rows += '<dt>' + esc(LER_STR[pairs[i]]) + '</dt><dd>' + esc(LER_STR[pairs[i + 1]]) + '</dd>'; }
+    info.hidden = false;
+    info.innerHTML = '<div class="top"><span class="id">' + esc(title) + '</span><button class="x" type="button" aria-label="Luk">×</button></div>' +
+      '<div class="kind">' + kind + '</div><dl>' + rows + '</dl>';
+    info.querySelector('.x').onclick = function () { select(null); };
+    draw();
+  }
   function selectLer(h) {
     select(null);
     selLer = h;
-    var rec = LER_INFO[h.layer.info[h.run]], rows = '', info = document.getElementById('info');
-    for (var i = 1; i + 1 < rec.length; i += 2) { rows += '<dt>' + esc(LER_STR[rec[i]]) + '</dt><dd>' + esc(LER_STR[rec[i + 1]]) + '</dd>'; }
-    info.hidden = false;
-    info.innerHTML = '<div class="top"><span class="id">' + esc(LER_STR[rec[0]]) + '</span><button class="x" type="button" aria-label="Luk">×</button></div>' +
-      '<div class="kind"><span class="sw" style="background:' + h.layer.rgb + '"></span>' + esc(h.layer.group + ' · ' + h.layer.label) + '</div>' +
-      '<dl>' + rows + '</dl>';
-    info.querySelector('.x').onclick = function () { select(null); };
-    draw();
+    var rec = LER_INFO[h.layer.info[h.run]];
+    showCard(LER_STR[rec[0]], '<span class="sw" style="background:' + h.layer.rgb + '"></span>' + esc(h.layer.group + ' · ' + h.layer.label), rec.slice(1));
   }
   function drawSelLer() {
     if (!selLer || !selLer.layer.on) { return; }
@@ -450,6 +454,51 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     for (var i = 2; i < a.length; i += 2) { ctx.lineTo(sx(a[i]), sy(a[i + 1])); }
     ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 7; ctx.stroke();
     ctx.strokeStyle = selLer.layer.rgb; ctx.lineWidth = 3; ctx.stroke();
+  }
+  // ---- blocks: n is the name and f the label/value pairs (in lerStrings), b the box around what is drawn of the block,
+  // l the layers it is drawn on, r its lines as layer, first line, line count. A click inside the box picks the block;
+  // where boxes overlap, the smallest one ----
+  var BLOCKS = D.blocks || [], selBlock = null;
+  function blockOn(b) { return b.l.some(function (i) { return layers[i].on; }); }
+  function pickBlock(mx, my) {
+    var x = wx(mx), y = wy(my), pad = 4 / view.s, best = null, bestArea = Infinity;
+    BLOCKS.forEach(function (b) {
+      var r = b.b, area = (r[2] - r[0]) * (r[3] - r[1]);
+      if (x < r[0] - pad || x > r[2] + pad || y < r[1] - pad || y > r[3] + pad || area >= bestArea || !blockOn(b)) { return; }
+      best = b; bestArea = area;
+    });
+    return best;
+  }
+  function selectBlock(b) {
+    select(null);
+    selBlock = b;
+    var name = LER_STR[b.n], bar = name.indexOf('|');
+    showCard(bar < 0 ? name : name.slice(bar + 1), esc('Blok · ' + (bar < 0 ? 'Fremtid (tegningen selv)' : name.slice(0, bar))), b.f);
+  }
+  // The block's lines as a selected LER line: white underneath, the layer's colour on top. A block of texts only gets its box
+  function drawSelBlock() {
+    if (!selBlock || !blockOn(selBlock)) { return; }
+    var r = selBlock.r, box = selBlock.b, pad = 5;
+    if (!r.length) {
+      ctx.setLineDash([5, 4]); ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5;
+      ctx.strokeRect(sx(box[0]) - pad, sy(box[3]) - pad, (box[2] - box[0]) * view.s + 2 * pad, (box[3] - box[1]) * view.s + 2 * pad);
+      ctx.setLineDash([]);
+      return;
+    }
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    [true, false].forEach(function (under) {
+      for (var k = 0; k + 2 < r.length; k += 3) {
+        var l = layers[r[k]], lines = D.layers[r[k]].lines;
+        if (!l.on) { continue; }
+        ctx.beginPath();
+        for (var j = r[k + 1]; j < r[k + 1] + r[k + 2]; j++) {
+          var a = lines[j];
+          ctx.moveTo(sx(a[0]), sy(a[1]));
+          for (var i = 2; i < a.length; i += 2) { ctx.lineTo(sx(a[i]), sy(a[i + 1])); }
+        }
+        ctx.strokeStyle = under ? '#ffffff' : l.rgb; ctx.lineWidth = under ? 7 : 3; ctx.stroke();
+      }
+    });
   }
   var STATION_LAYER = { name: '__stations', group: 'AUTOAMKB', label: 'Alignments og stationering', rgb: '#ffffff', on: true, n: D.alignments.length };
 
@@ -553,6 +602,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     drawTexts();
     if (STATION_LAYER.on) { drawStations(); }
     drawSelLer();
+    drawSelBlock();
     drawItems();
     drawSection();
     drawMeasure();
@@ -886,7 +936,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
   // The cross-section goes to the clicked spot when there is one; picked from the list, a narrow road opens at its
   // narrowest station and any other finding at its station
   function select(it, zoom, spot) {
-    selected = it; selLer = null;
+    selected = it; selLer = null; selBlock = null;
     if (it && it.alignment && PA[it.alignment]) {
       var a = PA[it.alignment];
       sel = spot && spot.al === it.alignment ? spot : { al: it.alignment, i: it.narrowIdx !== undefined ? it.narrowIdx : sampleIndex(a, it.from) };
@@ -1442,7 +1492,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
   canvas.addEventListener('pointermove', function (e) {
     if (!down) {
       if (meas.on) { meas.hover = [wx(e.offsetX), wy(e.offsetY)]; updateRead(); draw(); }
-      else { canvas.style.cursor = pick(e.offsetX, e.offsetY) || pickLer(e.offsetX, e.offsetY) ? 'pointer' : ''; }
+      else { canvas.style.cursor = pick(e.offsetX, e.offsetY) || pickLer(e.offsetX, e.offsetY) || pickBlock(e.offsetX, e.offsetY) ? 'pointer' : ''; }
       return;
     }
     var dx = e.offsetX - down.x, dy = e.offsetY - down.y;
@@ -1455,11 +1505,12 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
         if (meas.done) { meas.pts = []; meas.done = false; }
         meas.pts.push([wx(e.offsetX), wy(e.offsetY)]); updateRead(); draw();
       } else {
-        // A finding first, then a LER line; either way the cross-section moves to where the click was
-        var it = pick(e.offsetX, e.offsetY), lr = it ? null : pickLer(e.offsetX, e.offsetY);
+        // A finding first, then a LER line, then a block; either way the cross-section moves to where the click was
+        var it = pick(e.offsetX, e.offsetY), lr = it ? null : pickLer(e.offsetX, e.offsetY), bl = it || lr ? null : pickBlock(e.offsetX, e.offsetY);
         var spot = spotAt(e.offsetX, e.offsetY, it && it.alignment && PA[it.alignment] ? it.alignment : null);
         if (it) { select(it, false, spot); }
         else if (lr) { selectLer(lr); if (spot) { sel = spot; updateB(); draw(); } }
+        else if (bl) { selectBlock(bl); if (spot) { sel = spot; updateB(); draw(); } }
         else if (spot) { select(null); sel = spot; updateB(); draw(); }
         else { select(null); }
       }
