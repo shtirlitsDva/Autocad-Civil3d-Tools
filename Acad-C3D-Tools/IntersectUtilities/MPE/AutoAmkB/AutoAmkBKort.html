@@ -1210,7 +1210,8 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     ]);
   }
 
-  // ---- the final Excel file: the same sheets AUTOAMKB wrote, from what is shown here, with marked findings on Fravalgt ----
+  // ---- the final Excel file: the same sheets AUTOAMKB wrote, from what is shown here (the risks switched on), with marked
+  // findings on Fravalgt ----
   var HEADER_ROW = 13, FIRST_ROW = 14, SOURCE_COL = 17;
   var LOGBOOK_HEADERS = ['ID Nr.', 'Emne', 'Arbejdsmiljøudfordring (fritekst)', 'Særligt Farligt Arbejde, hovedkategori', 'Særligt Farligt Arbejde, underkategori',
     'Iboende sandsynlighed', 'Iboende konsekvens', 'Risikovurdering', 'Løsning og tiltag (fritekst)', 'Endelig sandsynlighed', 'Endelig konsekvens', 'Risikovurdering',
@@ -1240,7 +1241,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
   function copyHint(n) { return n === 0 ? 'Ingen fund.' : 'Kopiér B' + FIRST_ROW + ':F' + (FIRST_ROW + n - 1) + ' og indsæt som værdier i skabelonens celle B' + FIRST_ROW + '. Kolonne Q og frem er skjulte kildedata.'; }
   function intro(sh, title, hint) {
     sh.put(1, 2, title); sh.put(2, 2, hint);
-    sh.put(3, 2, 'Projekt ' + D.project + ', etape ' + D.etape + ', kørt ' + D.runTime + '. Se den skjulte fane Kørselsinfo.');
+    sh.put(3, 2, 'Projekt ' + D.project + ', etape ' + D.etape + ', kørt ' + D.runTime + '. Se den skjulte fane Kørselsinfo.' + offNote());
   }
   function hitFields(it) {
     var h = it.hit;
@@ -1251,16 +1252,23 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       return byName(a.alignment, b.alignment) || (a.from - b.from) || (KIND_ORDER.indexOf(a.kind.key) - KIND_ORDER.indexOf(b.kind.key));
     });
   }
+  // Says which risks are switched off under Risici and so left out of the export, so an unticked box is not missed
+  function offNote() {
+    var off = kindList.filter(function (k) { return !k.on && k.count > 0; }).map(function (k) { return k.name; });
+    return off.length ? ' Ikke med (slået fra under Risici): ' + off.join(', ') + '.' : '';
+  }
+  // Only the risks switched on under Risici go out; among them, findings marked as not a problem go to Fravalgt
   function buildSheets() {
-    var hits = orderHits(items.filter(function (it) { return !it.valve; }));
+    var shown = items.filter(function (it) { return it.kind.on; });
+    var hits = orderHits(shown.filter(function (it) { return !it.valve; }));
     var kept = hits.filter(function (it) { return !isNon(it); });
-    var valves = items.filter(function (it) { return it.valve; });
+    var valves = shown.filter(function (it) { return it.valve; });
     // As AUTOAMKB orders them: by alignment, then station; a valve without either goes last
     var keptValves = valves.filter(function (it) { return !isNon(it); }).sort(function (a, b) {
       var sa = a.v.sta.length ? a.v.sta[0] : Infinity, sb = b.v.sta.length ? b.v.sta[0] : Infinity;
       return byName(a.alignment || '~', b.alignment || '~') || (sa < sb ? -1 : sa > sb ? 1 : 0);
     });
-    var dropped = items.filter(isNon);
+    var dropped = shown.filter(isNon);
     var sheets = [];
 
     var sh = templateSheet('Logbog pr. fund');
@@ -1334,11 +1342,16 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     line('', 'Standard i AutoAmkB.csv: ' + m(STD_B));
     line('', 'Global: ' + m(globalB()) + (setup.globalB !== null ? ' (ændret i kortet)' : ' (standard)'));
     Object.keys(setup.overrides).sort(byName).forEach(function (al) { line('', 'Alignment ' + al + ': ' + m(setup.overrides[al])); });
+    // A risk switched off in the map is named as left out, with what the map had of it, so it is not read as none found
+    function exportedCount(key, exported, unit) {
+      var k = kinds[key];
+      return k && !k.on ? 'Ikke med, slået fra i kortet (' + k.count + ' ' + unit + ' i kortet)' : String(exported);
+    }
     row++; line('Antal');
     KIND_ORDER.filter(function (k) { return k !== 'VENTIL'; }).forEach(function (k) {
-      line(KIND_TEXT[k].name, String(kept.filter(function (it) { return it.kind.key === k; }).length));
+      line(KIND_TEXT[k].name, exportedCount(k, kept.filter(function (it) { return it.kind.key === k; }).length, 'fund'));
     });
-    line('Ventilplaceringer', String(keptValves.length));
+    line('Ventilplaceringer', exportedCount('VENTIL', keptValves.length, 'placeringer'));
     line('Fravalgt', String(dropped.length) + (dropped.length ? ' (se fanen Fravalgt)' : ''));
     row++; line('Datafiler'); I.files.forEach(function (f) { line(f[0], f[1], f[2]); });
     row++; line('Advarsler'); if (!I.warnings.length) { line('', 'Ingen'); } I.warnings.forEach(function (w) { line('', w); });
@@ -1436,11 +1449,11 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       saved = true;
       status('Skriver Excel …');
       return zip(workbookFiles(buildSheets())).then(function (blob) {
-        if (!window.showSaveFilePicker) { download(blob, excelName()); status('Excel gemt som download: ' + excelName()); return; }
+        if (!window.showSaveFilePicker) { download(blob, excelName()); status('Excel gemt som download: ' + excelName() + '.' + offNote()); return; }
         var opts = { suggestedName: excelName(), types: [{ description: 'Excel', accept: { 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'] } }] };
         if (fileHandle) { opts.startIn = fileHandle; }
         return window.showSaveFilePicker(opts).then(function (h) {
-          return h.createWritable().then(function (w) { return w.write(blob).then(function () { return w.close(); }); }).then(function () { status('Kortet er gemt, og Excel er skrevet: ' + h.name); });
+          return h.createWritable().then(function (w) { return w.write(blob).then(function () { return w.close(); }); }).then(function () { status('Kortet er gemt, og Excel er skrevet: ' + h.name + '.' + offNote()); });
         });
       });
     }).catch(function (e) {
