@@ -5,8 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>AUTOAMKB kort</title>
 <style>
-/* Layout: sidebar with actions, filters and the list of findings; map canvas to the right with the B panel, the info
-   card and the marks stacked on the right edge. One dark look, like model space in AutoCAD */
+/* Layout: sidebar with actions, filters, the drawing's layers (folded away) and the list of findings; map canvas to the
+   right with messages at the top left, the info card and the marks on the right edge, and the Montagehul window folded
+   to one line at the bottom right. One dark look, like model space in AutoCAD */
 :root {
   --bg: #15191c; --panel: #1d2226; --panel-2: #252b30; --fg: #e4e8ea; --muted: #96a0a6; --line: #343b40;
   --accent: #6fb3ff; --sel: #ffffff; --warn: #ffb000; --ok: #5cbf86; --bad: #ef6a61;
@@ -27,9 +28,13 @@ h1 { font-size: 17px; margin: 0; font-weight: 700; letter-spacing: .01em; }
 .actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
 #saveState { font-size: 12.5px; color: var(--muted); }
 #saveState.dirty { color: var(--warn); }
-#status { font-size: 12.5px; margin-top: 6px; overflow-wrap: anywhere; }
-#status.bad { color: var(--bad); }
-.notice { margin-top: 8px; padding: 8px 10px; border: 1px solid var(--warn); border-radius: 4px; background: rgba(255,176,0,.08); font-size: 13px; display: grid; gap: 6px; }
+/* Messages float at the top left of the map, so they never push the list of findings out of view */
+#toasts { position: absolute; top: 54px; left: 12px; width: min(440px, calc(100% - 24px)); z-index: 7; display: grid; gap: 8px; pointer-events: none; }
+#toasts > * { pointer-events: auto; }
+#status { font-size: 13px; overflow-wrap: anywhere; background: var(--panel); border: 1px solid var(--accent); border-radius: 6px; padding: 8px 12px; box-shadow: 0 6px 24px rgba(0,0,0,.45); }
+#status:empty { display: none; }
+#status.bad { color: var(--bad); border-color: var(--bad); }
+.notice { padding: 8px 10px; border: 1px solid var(--warn); border-radius: 6px; background: var(--panel); font-size: 13px; display: grid; gap: 6px; box-shadow: 0 6px 24px rgba(0,0,0,.45); }
 .notice .btns { display: flex; gap: 6px; flex-wrap: wrap; }
 .sec { padding: 10px 16px; border-bottom: 1px solid var(--line); }
 .sec h2 { font-size: 11.5px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 0 0 6px; display: flex; justify-content: space-between; align-items: center; font-weight: 600; }
@@ -39,6 +44,9 @@ h1 { font-size: 17px; margin: 0; font-weight: 700; letter-spacing: .01em; }
 .sw { width: 12px; height: 12px; border-radius: 2px; flex: none; border: 1px solid rgba(255,255,255,.25); }
 .cnt { margin-left: auto; color: var(--muted); font-family: var(--mono); font-size: 12px; }
 #layers { max-height: 30vh; overflow: auto; }
+.sec h2 .fold { margin: 0 auto 0 0; padding: 0; background: none; border: 0; color: inherit; font: inherit; text-transform: inherit; letter-spacing: inherit; cursor: pointer; }
+.sec.folded #layers, .sec.folded #legend { display: none; }
+#q { width: 100%; margin: 0 0 6px; font: 13px var(--font); background: var(--bg); color: var(--fg); border: 1px solid var(--line); border-radius: 4px; padding: 6px 8px; }
 .grp > .row { font-weight: 600; }
 .grp .kids { padding-left: 20px; display: none; }
 .grp.open .kids { display: block; }
@@ -70,7 +78,7 @@ h1 { font-size: 17px; margin: 0; font-weight: 700; letter-spacing: .01em; }
 #right > * { pointer-events: auto; }
 .card { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; box-shadow: 0 6px 24px rgba(0,0,0,.45); flex: none; }
 #info { overflow: auto; max-height: 42vh; }
-#nonPanel { display: flex; flex-direction: column; min-height: 140px; flex: 1 1 auto; gap: 6px; }
+#nonPanel { display: flex; flex-direction: column; max-height: 30vh; gap: 6px; }
 .nhead { display: flex; align-items: center; gap: 8px; }
 .sbtn { font: 600 12.5px var(--font); background: var(--panel-2); color: var(--fg); border: 1px solid var(--line); border-radius: 3px; padding: 3px 9px; cursor: pointer; }
 .sbtn:hover { border-color: var(--accent); }
@@ -89,6 +97,8 @@ h1 { font-size: 17px; margin: 0; font-weight: 700; letter-spacing: .01em; }
 .mark input { font: 13px var(--font); background: var(--bg); color: var(--fg); border: 1px solid var(--line); border-radius: 3px; padding: 5px 8px; }
 .mark .state { font-size: 12.5px; color: var(--muted); }
 .mark .state.check { color: var(--warn); }
+#info .nav { display: flex; align-items: center; gap: 8px; margin: -2px 0 8px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+#info .nav span { flex: 1; text-align: center; font: 12.5px var(--mono); color: var(--muted); }
 #info .top { display: flex; align-items: baseline; gap: 10px; }
 #info .id { font: 700 18px var(--mono); min-width: 0; overflow-wrap: anywhere; }
 #info .x { margin-left: auto; background: none; border: 0; color: var(--muted); font-size: 18px; cursor: pointer; }
@@ -102,7 +112,13 @@ h1 { font-size: 17px; margin: 0; font-weight: 700; letter-spacing: .01em; }
 #bGrip::before { content: ''; position: absolute; left: 4px; top: 4px; width: 8px; height: 8px; border-left: 2px solid var(--muted); border-top: 2px solid var(--muted); }
 #bGrip:hover::before { border-color: var(--accent); }
 .bbody { padding: 12px 14px 12px 18px; overflow: auto; flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
-.bhead { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; }
+.bhead { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; cursor: pointer; user-select: none; }
+.bhead #bHeadVal { font: 600 13px var(--mono); color: var(--accent); }
+.bhead .caret { margin-left: 4px; }
+/* Folded, the window is its title line: Montagehul B, the B in force and the number of narrow roads */
+#bPanel.folded { height: auto !important; min-height: 0; }
+#bPanel.folded #bGrip, #bPanel.folded .bbody > :not(.bhead) { display: none; }
+#bPanel.folded .bhead { margin-bottom: 0; }
 .bline { display: grid; grid-template-columns: 74px minmax(0, 1fr) 64px; align-items: center; gap: 8px; font-size: 13px; }
 .bline output { font: 600 13px var(--mono); color: var(--accent); text-align: right; }
 input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
@@ -133,7 +149,24 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
 .xs-need { stroke: #e4e8ea; stroke-width: 1.5; stroke-dasharray: 5 4; fill: none; } .xs-short { stroke: #ef6a61; stroke-width: 4; }
 #scale { position: absolute; left: 12px; bottom: 12px; font: 12px var(--mono); color: var(--muted); }
 #scale i { display: block; height: 6px; border: 1px solid var(--muted); border-top: 0; margin-top: 2px; }
-#hint { position: absolute; left: 120px; bottom: 12px; font-size: 12px; color: var(--muted); }
+/* Dialogs: the first save, and the summary before export */
+#dlgBack { position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 40; display: grid; place-items: center; }
+#dlg { width: min(560px, calc(100% - 32px)); max-height: calc(100% - 32px); overflow: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 18px 20px; box-shadow: 0 12px 40px rgba(0,0,0,.6); }
+#dlg h3 { margin: 0 0 6px; font-size: 17px; }
+#dlg p { margin: 6px 0; }
+#dlg .muted { color: var(--muted); font-size: 13px; }
+#dlg .path { display: grid; grid-template-columns: 60px minmax(0, 1fr) auto; gap: 6px 10px; align-items: center; margin: 10px 0; font-size: 13px; color: var(--muted); }
+#dlg .path code { font: 12.5px var(--mono); color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 3px; padding: 3px 6px; overflow-wrap: anywhere; }
+#dlg ol { margin: 8px 0; padding-left: 20px; }
+#dlg ol li { margin: 3px 0; }
+#dlg table { width: 100%; border-collapse: collapse; font-size: 13.5px; margin: 8px 0; }
+#dlg td { padding: 4px 6px; border-bottom: 1px solid var(--line); }
+#dlg td.n { text-align: right; font-family: var(--mono); white-space: nowrap; }
+#dlg td.why { color: var(--muted); }
+#dlg tr.warn td { color: var(--warn); }
+#dlg tr.head td { color: var(--muted); font-size: 11.5px; text-transform: uppercase; letter-spacing: .06em; border-bottom: 0; padding-top: 10px; }
+#dlg .btns { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; }
+#dlg .btns .sbtn { padding: 6px 14px; font-size: 13.5px; }
 </style>
 </head>
 <body>
@@ -147,15 +180,13 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
         <button class="sbtn" id="export" type="button" title="Gem, og skriv den endelige Excel-fil til logbog og journal">Eksportér Excel</button>
         <span id="saveState" aria-live="polite"></span>
       </div>
-      <div id="status" aria-live="polite"></div>
-      <div id="notices"></div>
     </header>
     <div class="sec">
       <h2>Risici <span><button id="kOn" type="button">Alle</button><button id="kOff" type="button">Ingen</button></span></h2>
       <div id="kinds"></div>
     </div>
-    <div class="sec">
-      <h2>Tegning <span><button id="lOn" type="button">Alle</button><button id="lOff" type="button">Ingen</button></span></h2>
+    <div class="sec folded" id="layerSec">
+      <h2><button class="fold" id="lFold" type="button" aria-expanded="false" aria-controls="layers">▸ Tegning</button><span><button id="lOn" type="button">Alle</button><button id="lOff" type="button">Ingen</button></span></h2>
       <div id="layers"></div>
       <div id="legend">
         <label class="row"><input type="checkbox" id="pv_trench" checked><i class="sw" style="background:rgba(234,217,168,.8)"></i>Rende (W)</label>
@@ -166,6 +197,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     </div>
     <div class="sec grow">
       <h2>Fund <span id="count"></span></h2>
+      <input id="q" type="search" placeholder="Søg: ID, ejer, tekst …" aria-label="Søg i fund">
       <div id="list"></div>
     </div>
   </aside>
@@ -176,20 +208,25 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       <button id="zout" type="button" title="Zoom ud">−</button>
       <button id="zall" type="button">Hele tracéet</button>
       <button id="measure" type="button" title="Klik punkter, dobbeltklik for at afslutte, Esc for at rydde">Mål</button>
+      <button id="help" type="button" title="Sådan bruges kortet" aria-label="Sådan bruges kortet">?</button>
     </div>
     <div id="mread" hidden></div>
+    <div id="toasts">
+      <div id="status" aria-live="polite"></div>
+      <div id="notices"></div>
+    </div>
     <div id="right">
       <div id="info" class="card" hidden></div>
-      <div id="nonPanel" class="card">
+      <div id="nonPanel" class="card" hidden>
         <div class="nhead"><b>Ikke-problemer</b><span class="cnt" id="nCount"></span></div>
         <label class="row"><input type="checkbox" id="nHide"> Skjul dem på kortet og i listen</label>
         <div id="nList"></div>
       </div>
     </div>
-    <div id="bPanel" class="card">
+    <div id="bPanel" class="card folded">
       <div id="bGrip" title="Træk for at ændre størrelsen" aria-hidden="true"></div>
       <div class="bbody">
-        <div class="bhead"><b>Montagehul B</b><span class="cnt" id="bCount"></span></div>
+        <div class="bhead" id="bHead" role="button" tabindex="0" aria-expanded="false" title="Vis eller fold Montagehul B og tværsnittet"><b>Montagehul B</b><span id="bHeadVal"></span><span class="cnt" id="bCount"></span><span class="caret">▸</span></div>
         <div class="bline"><span>Global</span><input type="range" id="bGlobal" min="0" max="1.5" step="0.01" aria-label="Montagehul B, global"><output id="bGlobalOut" for="bGlobal"></output></div>
         <div class="bnote" id="bStd"></div>
         <div class="chips" id="bChips"></div>
@@ -207,7 +244,6 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       </div>
     </div>
     <div id="scale"></div>
-    <div id="hint">Træk for at panorere · hjul for zoom · klik ved tracéet for tværsnit, på et fund eller en LER-ledning</div>
   </main>
 </div>
 <script type="application/json" id="data">__DATA__</script>
@@ -236,6 +272,8 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
   function nowText() { var d = new Date(), p = function (n) { return (n < 10 ? '0' : '') + n; }; return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()); }
   function upper(s) { return String(s).toUpperCase(); }
   function byName(a, b) { a = upper(a); b = upper(b); return a < b ? -1 : a > b ? 1 : 0; }
+  // As the numbers go, not as the text sorts: 001:999 before 001:1000
+  function natural(a, b) { return String(a).localeCompare(String(b), 'da', { numeric: true }); }
   function own(o, k) { return Object.prototype.hasOwnProperty.call(o, k); }
 
   // ---- alignments: the line with its stations, for placing stretches ----
@@ -371,7 +409,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
   function rebuildItems() {
     items = baseItems.slice();
     Object.keys(narrowByAl).forEach(function (al) { items = items.concat(narrowByAl[al]); });
-    items.sort(function (a, b) { return a.id < b.id ? -1 : a.id > b.id ? 1 : KIND_ORDER.indexOf(a.kind.key) - KIND_ORDER.indexOf(b.kind.key); });
+    items.sort(function (a, b) { return natural(a.id, b.id) || KIND_ORDER.indexOf(a.kind.key) - KIND_ORDER.indexOf(b.kind.key); });
     Object.keys(kinds).forEach(function (k) { kinds[k].count = 0; });
     items.forEach(function (it) { it.kind.count++; });
     kindList = Object.keys(kinds).map(function (k) { return kinds[k]; })
@@ -777,8 +815,9 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
   var bGlobal = document.getElementById('bGlobal'), bAlRange = document.getElementById('bAlRange'), bOnly = document.getElementById('bOnly');
   function contextAl() { var al = sel ? sel.al : selected && selected.alignment; return al && PA[al] ? al : null; }
   function updateB() {
-    var g = globalB();
+    var g = globalB(), overridden = Object.keys(setup.overrides).length;
     bGlobal.value = g; document.getElementById('bGlobalOut').textContent = m(g);
+    document.getElementById('bHeadVal').textContent = m(g) + (overridden ? ' · ' + overridden + (overridden === 1 ? ' alignment' : ' alignments') + ' med egen B' : '');
     var std = document.getElementById('bStd');
     std.innerHTML = 'Standard ' + esc(m(STD_B)) + ' fra AutoAmkB.csv' + (setup.globalB !== null ? ' · ændret i kortet · <button class="lnk" type="button" id="bReset">Nulstil</button>' : '');
     if (setup.globalB !== null) { document.getElementById('bReset').onclick = function () { setup.globalB = null; changed(); applyB(allAlignments().filter(function (al) { return !own(setup.overrides, al); })); }; }
@@ -937,6 +976,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
   // narrowest station and any other finding at its station
   function select(it, zoom, spot) {
     selected = it; selLer = null; selBlock = null;
+    bAuto = !!it && it.kind.key === 'SMALVEJ'; showB();
     if (it && it.alignment && PA[it.alignment]) {
       var a = PA[it.alignment];
       sel = spot && spot.al === it.alignment ? spot : { al: it.alignment, i: it.narrowIdx !== undefined ? it.narrowIdx : sampleIndex(a, it.from) };
@@ -960,11 +1000,17 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       mark = (ms ? '<span class="state check">Tjek igen: ' + esc(ms.mark.id) + ' er markeret' + (ms.mark.note ? ' (' + esc(ms.mark.note) + ')' : '') + ', men dækker kun en del af denne strækning.</span>' : '') +
         '<input id="nNote" type="text" placeholder="Begrundelse (valgfri), fx cykelsti" maxlength="200"><button class="sbtn primary" id="nMark" type="button">Marker som ikke-problem</button>';
     }
-    info.innerHTML = '<div class="top"><span class="id">' + esc(it.id) + '</span><button class="x" type="button" aria-label="Luk">×</button></div>' +
+    var at = listOrder.indexOf(it);
+    info.innerHTML = '<div class="nav"><button class="sbtn" id="nPrev" type="button" title="Forrige fund i listen (↑)">◀ Forrige</button>' +
+      '<span>' + (at < 0 ? 'ikke i listen' : (at + 1) + ' af ' + listOrder.length) + '</span>' +
+      '<button class="sbtn" id="nNext" type="button" title="Næste fund i listen (↓)">Næste ▶</button></div>' +
+      '<div class="top"><span class="id">' + esc(it.id) + '</span><button class="x" type="button" aria-label="Luk">×</button></div>' +
       '<div class="kind"><span class="sw" style="background:' + it.kind.color + '"></span>' + esc(it.kind.name) + '</div>' +
       '<dl>' + it.rows.map(function (r) { return '<dt>' + esc(r[0]) + '</dt><dd>' + esc(r[1]) + '</dd>'; }).join('') + '</dl>' +
       '<div class="mark">' + mark + '</div>';
     info.querySelector('.x').onclick = function () { select(null); };
+    info.querySelector('#nPrev').onclick = function () { step(-1); };
+    info.querySelector('#nNext').onclick = function () { step(1); };
     if (ms && ms.state !== 'tjek') { info.querySelector('#nUnmark').onclick = function () { removeMark(ms.key); }; }
     else {
       var note = info.querySelector('#nNote');
@@ -975,8 +1021,10 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
 
   // ---- lists ----
   function buildNon() {
-    var box = document.getElementById('nList'), keys = Object.keys(setup.marks).sort(function (a, b) { return byName(setup.marks[a].id, setup.marks[b].id); });
+    var box = document.getElementById('nList'), keys = Object.keys(setup.marks).sort(function (a, b) { return natural(setup.marks[a].id, setup.marks[b].id); });
     document.getElementById('nCount').textContent = keys.length;
+    // The card is there only when something is marked; how to mark is on each finding's card
+    document.getElementById('nonPanel').hidden = keys.length === 0;
     box.innerHTML = keys.length ? '' : '<div class="nrow"><div class="k">Ingen markeringer endnu. Klik et fund og vælg "Marker som ikke-problem".</div></div>';
     keys.forEach(function (key) {
       var mk = setup.marks[key], hits = items.filter(function (it) { return it.ms && it.ms.key === key; });
@@ -1028,9 +1076,16 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
   function reopen(g) {
     document.querySelectorAll('.grp').forEach(function (w) { if (w.dataset.group === g) { w.classList.add('open'); w.querySelector('.caret').textContent = '▾'; } });
   }
+  // The search narrows the list, and Forrige/Næste go through the list as shown; the map keeps showing every finding
+  var query = '', listOrder = [];
+  function matches(it) {
+    var q = query.trim().toLowerCase();
+    return !q || (it.id + ' ' + it.kind.name + ' ' + it.text + ' ' + (it.hit ? it.hit.owner + ' ' + it.hit.source : '')).toLowerCase().indexOf(q) >= 0;
+  }
   function buildList() {
     var box = document.getElementById('list'); box.innerHTML = '';
-    var shown = items.filter(visible);
+    var shown = items.filter(visible).filter(matches);
+    listOrder = shown;
     document.getElementById('count').textContent = shown.length + ' af ' + items.length;
     shown.forEach(function (it) {
       var n = isNon(it), c = needsCheck(it);
@@ -1042,6 +1097,19 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       box.appendChild(row);
     });
   }
+  document.getElementById('q').oninput = function (e) { query = e.target.value; buildList(); };
+  // From the selected finding to the next or previous one in the list; with none selected, to the first or the last
+  function step(d) {
+    if (!listOrder.length) { return; }
+    var i = listOrder.indexOf(selected);
+    select(listOrder[i < 0 ? (d > 0 ? 0 : listOrder.length - 1) : Math.min(listOrder.length - 1, Math.max(0, i + d))], true);
+  }
+  window.addEventListener('keydown', function (e) {
+    var tag = e.target.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || document.getElementById('dlgBack')) { return; }
+    if (e.key === 'ArrowDown') { e.preventDefault(); step(1); }
+    if (e.key === 'ArrowUp') { e.preventDefault(); step(-1); }
+  });
 
   // ---- saving: the state lives in this file; unsaved changes are kept in the browser as a draft ----
   var DRAFT_KEY = 'amkb-kort:' + D.project + ':' + D.etape;
@@ -1074,7 +1142,14 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
   function rememberHandle(h) { return handleStore('readwrite', function (s) { return s.put(h, HANDLE_KEY); }); }
   function forgetHandle() { fileHandle = null; return handleStore('readwrite', function (s) { return s.delete(HANDLE_KEY); }); }
   function dirty() { return setupJson() !== savedJson; }
-  function status(text, bad) { var s = document.getElementById('status'); s.textContent = text; s.className = bad ? 'bad' : ''; }
+  // A message over the map goes after 12 s; an error stays until the next message
+  var statusTimer = 0;
+  function status(text, bad) {
+    var s = document.getElementById('status');
+    s.textContent = text; s.className = bad ? 'bad' : '';
+    clearTimeout(statusTimer);
+    if (text && !bad) { statusTimer = setTimeout(function () { if (s.textContent === text) { s.textContent = ''; } }, 12000); }
+  }
   function showSaveState() {
     var el2 = document.getElementById('saveState'), d = dirty();
     el2.className = d ? 'dirty' : '';
@@ -1113,18 +1188,37 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
       });
     });
   }
+  // The first save explains itself in a dialog: a page cannot open its own file, so the user points the browser to it.
+  // Its button is the click the file dialog needs; the folder is copied, ready to paste into the dialog's path field
+  function copyMapDir() {
+    if (navigator.clipboard && MAP_DIR) { navigator.clipboard.writeText(MAP_DIR).catch(function () { /* the folder is shown in the dialog */ }); }
+  }
   function pickMap() {
-    if (navigator.clipboard && MAP_DIR) { navigator.clipboard.writeText(MAP_DIR).catch(function () { /* the folder is in the status line */ }); }
-    status('Vælg denne kort-fil: ' + MAP_NAME + '. Mappen er kopieret; sæt den ind i stifeltet (Ctrl+V, Enter): ' + MAP_DIR);
-    return window.showOpenFilePicker({ id: 'amkb-kort', types: [{ description: 'AUTOAMKB-kort', accept: { 'text/html': ['.html'] } }] })
-      .then(function (hs) {
-        var h = hs[0];
-        return h.requestPermission({ mode: 'readwrite' }).then(function (p) {
-          if (p !== 'granted') { throw new Error('Ingen tilladelse til at skrive i kortet.'); }
-          fileHandle = h;
-          return h;
-        });
-      });
+    return new Promise(function (resolve, reject) {
+      var box = dialog('<h3 id="dlgTitle">Gem gennemgangen i kortet</h3>' +
+        '<p>Kortet gemmer i sin egen fil. Første gang skal du vise browseren, hvilken fil det er. Derefter husker browseren den.</p>' +
+        '<div class="path"><span>Fil</span><code>' + esc(MAP_NAME) + '</code><span></span>' +
+        '<span>Mappe</span><code>' + esc(MAP_DIR) + '</code><button class="sbtn" type="button" id="dCopy">Kopiér</button></div>' +
+        '<ol><li>Klik <b>Vælg kortet</b>. Mappen bliver kopieret.</li><li>Sæt mappen ind i stifeltet øverst (Ctrl+V), og tryk Enter.</li>' +
+        '<li>Vælg filen, klik Åbn, og tillad, at siden redigerer den.</li></ol>' +
+        '<div class="btns"><button class="sbtn" type="button" data-close>Annullér</button><button class="sbtn primary" type="button" id="dPick">Vælg kortet …</button></div>',
+        function () { reject(new DOMException('Annulleret', 'AbortError')); });
+      box.querySelector('#dCopy').onclick = copyMapDir;
+      box.querySelector('#dPick').onclick = function () {
+        closeDialog();
+        copyMapDir();
+        window.showOpenFilePicker({ id: 'amkb-kort', types: [{ description: 'AUTOAMKB-kort', accept: { 'text/html': ['.html'] } }] })
+          .then(function (hs) {
+            var h = hs[0];
+            return h.requestPermission({ mode: 'readwrite' }).then(function (p) {
+              if (p !== 'granted') { throw new Error('Ingen tilladelse til at skrive i kortet.'); }
+              fileHandle = h;
+              return h;
+            });
+          })
+          .then(resolve, reject);
+      };
+    });
   }
   // Saving writes the state into the file on disk, after checking it is this very run of the map
   function save() {
@@ -1165,6 +1259,24 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     status(locked ? 'Filen kunne ikke skrives. Er den åben i et andet program? Luk den og prøv igen.' : what + ' mislykkedes: ' + (e && e.message ? e.message : e), true);
   }
   document.getElementById('save').onclick = function () { status(''); save().catch(function (e) { failed(e, 'Gem'); }); };
+
+  // ---- dialogs: one at a time; Annullér, Esc or a click beside it cancels ----
+  var dialogCancel = null;
+  function dialog(html, onCancel) {
+    cancelDialog();
+    var back = document.createElement('div'); back.id = 'dlgBack';
+    back.innerHTML = '<div id="dlg" role="dialog" aria-modal="true" aria-labelledby="dlgTitle">' + html + '</div>';
+    document.body.appendChild(back);
+    dialogCancel = onCancel || null;
+    back.querySelectorAll('[data-close]').forEach(function (b) { b.onclick = cancelDialog; });
+    back.addEventListener('pointerdown', function (e) { if (e.target === back) { cancelDialog(); } });
+    var primary = back.querySelector('.primary');
+    if (primary) { primary.focus(); }
+    return back;
+  }
+  function closeDialog() { var b = document.getElementById('dlgBack'); if (b) { b.remove(); } dialogCancel = null; }
+  function cancelDialog() { var c = dialogCancel; closeDialog(); if (c) { c(); } }
+  window.addEventListener('keydown', function (e) { if (e.key === 'Escape' && document.getElementById('dlgBack')) { cancelDialog(); } });
 
   // ---- notices on opening: an unsaved draft, and a changed standard B ----
   function notice(id, html, buttons) {
@@ -1441,37 +1553,91 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     var safe = function (s) { return String(s).trim().replace(/[\\/:*?"<>|]/g, '_'); };
     return 'AUTOAMKB_' + safe(D.project) + '_' + safe(D.etape) + '_' + nowText().slice(0, 10) + '.xlsx';
   }
-  // Export saves first, so the Excel file and the saved map always describe the same state
-  document.getElementById('export').onclick = function () {
-    var saved = false;
-    status('');
-    save().then(function () {
-      saved = true;
-      status('Skriver Excel …');
-      return zip(workbookFiles(buildSheets())).then(function (blob) {
-        if (!window.showSaveFilePicker) { download(blob, excelName()); status('Excel gemt som download: ' + excelName() + '.' + offNote()); return; }
-        var opts = { suggestedName: excelName(), types: [{ description: 'Excel', accept: { 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'] } }] };
-        if (fileHandle) { opts.startIn = fileHandle; }
-        return window.showSaveFilePicker(opts).then(function (h) {
-          return h.createWritable().then(function (w) { return w.write(blob).then(function () { return w.close(); }); }).then(function () { status('Kortet er gemt, og Excel er skrevet: ' + h.name + '.' + offNote()); });
-        });
-      });
-    }).catch(function (e) {
-      // The browser allows one file dialog per click; the first export may already have used it to find the map
-      if (saved && e && (e.name === 'SecurityError' || e.name === 'NotAllowedError')) { status('Kortet er gemt. Klik "Eksportér Excel" igen for at vælge, hvor Excel-filen skal ligge.'); return; }
-      failed(e, 'Eksport');
+  // ---- export: first a summary of what goes where, so an unticked risk or a wrong B is seen before the file is written ----
+  function exportSummary() {
+    var shown = items.filter(function (it) { return it.kind.on; }), rows = '', logRows = 0;
+    function warnRow(name, why) { return '<tr class="warn"><td>⚠ ' + esc(name) + '</td><td class="n">ikke med</td><td class="why">' + esc(why) + '</td></tr>'; }
+    kindList.forEach(function (k) {
+      if (k.key === 'VENTIL') { return; }
+      if (!k.on) { if (k.count) { rows += warnRow(k.name, 'slået fra under Risici (' + k.count + ' fund)'); } return; }
+      var n = shown.filter(function (it) { return it.kind === k && !isNon(it); }).length;
+      logRows += n;
+      rows += '<tr><td>' + esc(k.name) + '</td><td class="n">' + n + '</td><td></td></tr>';
     });
-  };
+    var valveKind = kinds.VENTIL, valves = shown.filter(function (it) { return it.valve && !isNon(it); }).length;
+    var journal = valveKind && !valveKind.on ? warnRow('Ventilplaceringer', 'slået fra under Risici (' + valveKind.count + ' placeringer)')
+      : '<tr><td>Ventilplaceringer</td><td class="n">' + valves + '</td><td class="why">' + valves * D.excel.journal.subs.length + ' rækker</td></tr>';
+    var non = shown.filter(isNon).length, overridden = Object.keys(setup.overrides).length;
+    dialog('<h3 id="dlgTitle">Eksportér Excel</h3>' +
+      '<p class="muted">Kortet gemmes, og Excel-filen skrives med dette indhold. Passer noget ikke, så ret det i kortet først.</p><table>' +
+      '<tr class="head"><td colspan="3">Logbog</td></tr>' + rows +
+      '<tr><td><b>Rækker i alt</b></td><td class="n"><b>' + logRows + '</b></td><td></td></tr>' +
+      '<tr class="head"><td colspan="3">Journal</td></tr>' + journal +
+      '<tr class="head"><td colspan="3">Andet</td></tr>' +
+      '<tr><td>Markeret som ikke-problem</td><td class="n">' + non + '</td><td class="why">på den skjulte fane Fravalgt</td></tr>' +
+      '<tr><td>Montagehul B</td><td class="n">' + esc(m(globalB())) + '</td><td class="why">' +
+      (overridden ? overridden + (overridden === 1 ? ' alignment' : ' alignments') + ' med egen B' : 'samme for alle alignments') + '</td></tr>' +
+      '</table><p class="muted">Filnavn: ' + esc(excelName()) + '</p>' +
+      '<div class="btns"><button class="sbtn" type="button" data-close>Annullér</button><button class="sbtn primary" type="button" id="dExport">Eksportér …</button></div>');
+    document.getElementById('dExport').onclick = function () { closeDialog(); exportNow(); };
+  }
+  // The Excel file is chosen first, in the click: a completed file dialog counts as a new click, which saving the map
+  // may need for its permission prompt (the other way round, the second dialog needed a second click). The map is saved
+  // before the Excel file is written, so the two always describe the same state
+  function exportNow() {
+    status('');
+    if (!window.showSaveFilePicker) {
+      save().then(function () { return zip(workbookFiles(buildSheets())); })
+        .then(function (blob) { download(blob, excelName()); status('Excel gemt som download: ' + excelName() + '.' + offNote()); })
+        .catch(function (e) { failed(e, 'Eksport'); });
+      return;
+    }
+    var opts = { suggestedName: excelName(), types: [{ description: 'Excel', accept: { 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'] } }] };
+    if (fileHandle) { opts.startIn = fileHandle; }
+    var target = null;
+    window.showSaveFilePicker(opts).then(function (h) {
+      target = h;
+      status('Gemmer kortet …');
+      return save();
+    }).then(function () {
+      status('Skriver Excel …');
+      return zip(workbookFiles(buildSheets()));
+    }).then(function (blob) {
+      return target.createWritable().then(function (w) { return w.write(blob).then(function () { return w.close(); }); });
+    }).then(function () {
+      status('Kortet er gemt, og Excel er skrevet: ' + target.name + '.' + offNote());
+    }).catch(function (e) { failed(e, 'Eksport'); });
+  }
+  document.getElementById('export').onclick = function () { status(''); exportSummary(); };
 
   // ---- the Montagehul window: bottom right, resized from its top-left corner (double-click the corner to reset).
-  // The size is a per-browser convenience; the info and marks column keeps clear of it ----
+  // The size is a per-browser convenience. It is folded to its title line until it is clicked open, or until a narrow
+  // road is selected or the route is clicked, where the cross-section is what is wanted; folding it by hand holds until
+  // the next of those ----
   var bPanel = document.getElementById('bPanel'), rightCol = document.getElementById('right'), grip = document.getElementById('bGrip');
-  var SIZE_KEY = 'amkb-kort-montagehul-vindue', resizing = null;
+  var bHead = document.getElementById('bHead'), infoCard = document.getElementById('info'), mapBox = document.getElementById('mapWrap');
+  var SIZE_KEY = 'amkb-kort-montagehul-vindue', resizing = null, bByHand = false, bAuto = false;
   try {
     var size = JSON.parse(localStorage.getItem(SIZE_KEY) || 'null');
     if (size) { bPanel.style.width = size.w + 'px'; bPanel.style.height = size.h + 'px'; }
   } catch (e) { /* no stored size: the default one */ }
-  function fitRight() { rightCol.style.bottom = (bPanel.offsetHeight + 24) + 'px'; }
+  function showB() {
+    var open = bByHand || bAuto;
+    bPanel.classList.toggle('folded', !open);
+    bHead.setAttribute('aria-expanded', String(open));
+    bHead.querySelector('.caret').textContent = open ? '▾' : '▸';
+    fitRight();
+  }
+  function toggleB() { var open = bByHand || bAuto; bByHand = !open; bAuto = false; showB(); }
+  bHead.onclick = toggleB;
+  bHead.onkeydown = function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleB(); } };
+  // The finding's card comes first: when both do not fit, the open window gets what is left (at least 160 px) and
+  // scrolls, so the card's buttons stay in view. The card and marks column keeps clear of the window
+  function fitRight() {
+    var card = infoCard.hidden ? 0 : infoCard.offsetHeight + 10;
+    bPanel.style.maxHeight = bPanel.classList.contains('folded') ? '' : Math.max(160, mapBox.clientHeight - 24 - card) + 'px';
+    rightCol.style.bottom = (bPanel.offsetHeight + 24) + 'px';
+  }
   grip.addEventListener('pointerdown', function (e) {
     e.preventDefault(); grip.setPointerCapture(e.pointerId);
     var r = bPanel.getBoundingClientRect();
@@ -1492,12 +1658,15 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     bPanel.style.width = ''; bPanel.style.height = '';
     try { localStorage.removeItem(SIZE_KEY); } catch (e) { /* nothing stored */ }
   });
-  var sectionQueued = false;
+  // fitRight changes the window's height, so it runs in the next frame, not inside the size notification itself
+  var sectionQueued = false, fitQueued = false;
+  function queueFit() { if (!fitQueued) { fitQueued = true; requestAnimationFrame(function () { fitQueued = false; fitRight(); }); } }
   if (window.ResizeObserver) {
     new ResizeObserver(function () {
-      fitRight();
+      queueFit();
       if (!sectionQueued) { sectionQueued = true; requestAnimationFrame(function () { sectionQueued = false; updateSection(); }); }
     }).observe(bPanel);
+    new ResizeObserver(queueFit).observe(infoCard);
   }
 
   // ---- buttons, pan / zoom / click ----
@@ -1532,7 +1701,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
         if (it) { select(it, false, spot); }
         else if (lr) { selectLer(lr); if (spot) { sel = spot; updateB(); draw(); } }
         else if (bl) { selectBlock(bl); if (spot) { sel = spot; updateB(); draw(); } }
-        else if (spot) { select(null); sel = spot; updateB(); draw(); }
+        else if (spot) { select(null); sel = spot; bAuto = true; showB(); updateB(); draw(); }
         else { select(null); }
       }
     }
@@ -1544,13 +1713,20 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
     view.s = Math.min(400, Math.max(0.02, view.s * f));
     view.cx = bx - (mx - W / 2) / view.s; view.cy = by + (my - H / 2) / view.s; draw();
   }, { passive: false });
-  window.addEventListener('resize', function () { resize(); draw(); });
+  window.addEventListener('resize', function () { resize(); fitRight(); draw(); });
+  document.getElementById('lFold').onclick = function () {
+    var sec = document.getElementById('layerSec'), folded = sec.classList.toggle('folded');
+    this.textContent = (folded ? '▸' : '▾') + ' Tegning'; this.setAttribute('aria-expanded', String(!folded));
+  };
+  document.getElementById('help').onclick = function () {
+    status('Træk for at flytte kortet, hjul for zoom. Klik et fund, en LER-ledning eller en blok for at se den; klik ved tracéet for tværsnittet dér. ↓ og ↑ skifter fund.');
+  };
 
   document.title = 'AUTOAMKB kort ' + D.project + ' ' + D.etape;
   document.getElementById('meta').textContent = D.project + ' · ' + D.etape + ' · ' + D.runTime;
   resize(); fitBox(allBox(), 0.05);
   redoNarrow(allAlignments()); allAlignments().forEach(buildBands); rebuildItems();
-  buildKinds(); buildLayers(); buildList(); buildNon(); updateB(); showSaveState(); fitRight();
+  buildKinds(); buildLayers(); buildList(); buildNon(); updateB(); showSaveState(); showB();
   askStandard(); askDraft();
   draw();
 })();
