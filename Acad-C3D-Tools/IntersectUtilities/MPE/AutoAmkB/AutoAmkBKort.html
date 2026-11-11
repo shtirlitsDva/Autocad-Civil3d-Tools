@@ -112,7 +112,7 @@ h1 { font-size: 17px; margin: 0; font-weight: 700; letter-spacing: .01em; }
 #bGrip::before { content: ''; position: absolute; left: 4px; top: 4px; width: 8px; height: 8px; border-left: 2px solid var(--muted); border-top: 2px solid var(--muted); }
 #bGrip:hover::before { border-color: var(--accent); }
 .bbody { padding: 12px 14px 12px 18px; overflow: auto; flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
-.bhead { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; cursor: pointer; user-select: none; }
+.bhead { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; cursor: pointer; user-select: none; white-space: nowrap; }
 .bhead #bHeadVal { font: 600 13px var(--mono); color: var(--accent); }
 .bhead .caret { margin-left: 4px; }
 /* Folded, the window is its title line: Montagehul B, the B in force and the number of narrow roads */
@@ -817,7 +817,10 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
   function updateB() {
     var g = globalB(), overridden = Object.keys(setup.overrides).length;
     bGlobal.value = g; document.getElementById('bGlobalOut').textContent = m(g);
-    document.getElementById('bHeadVal').textContent = m(g) + (overridden ? ' · ' + overridden + (overridden === 1 ? ' alignment' : ' alignments') + ' med egen B' : '');
+    // Kept to one line: "+2" says that two alignments have their own B, spelled out in the tooltip
+    var headVal = document.getElementById('bHeadVal');
+    headVal.textContent = m(g) + (overridden ? ' +' + overridden : '');
+    headVal.title = overridden ? 'Global B; ' + overridden + (overridden === 1 ? ' alignment har' : ' alignments har') + ' sin egen B' : 'Global B';
     var std = document.getElementById('bStd');
     std.innerHTML = 'Standard ' + esc(m(STD_B)) + ' fra AutoAmkB.csv' + (setup.globalB !== null ? ' · ændret i kortet · <button class="lnk" type="button" id="bReset">Nulstil</button>' : '');
     if (setup.globalB !== null) { document.getElementById('bReset').onclick = function () { setup.globalB = null; changed(); applyB(allAlignments().filter(function (al) { return !own(setup.overrides, al); })); }; }
