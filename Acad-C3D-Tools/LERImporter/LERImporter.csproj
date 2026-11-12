@@ -150,6 +150,7 @@
 		<PackageReference Include="System.Text.Encodings.Web" Version="8.0.0" />
 		<PackageReference Include="System.Text.Json" Version="8.0.5" />
 		<PackageReference Include="System.Configuration.ConfigurationManager" Version="8.0.0" />
+		<PackageReference Include="CSharpFunctionalExtensions" Version="3.7.0" />
 	</ItemGroup>
 	<Import Project="..\IntersectUtilitiesCOMMON\IntersectUtilitiesCOMMON.projitems" Label="Shared" />
 	<!-- UtilitiesCommonSHARED needs Civil 3D, AEC and Map: AutoCAD lane only. The CSV

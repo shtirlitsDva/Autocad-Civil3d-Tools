@@ -99,7 +99,8 @@ public class AecStreamTests
         AecSet decoded = Ok(AecStream.ReadSet(tokens));
 
         AecItem item = decoded.Items.Single(i => i.At == variant - 6);
-        Assert.Equal(AecDataType.Text, item.Match(_ => (AecDataType?)null, e => e.Type, _ => null));
+        Assert.Equal(Maybe.From(AecDataType.Text), item.Match(
+            _ => Maybe<AecDataType>.None, e => Maybe.From(e.Type), _ => Maybe<AecDataType>.None));
     }
 
     [Fact]
@@ -116,6 +117,7 @@ public class AecStreamTests
 
         AecDefinedProperty property = decoded.Properties.Single(p => p.Name == "Tværsnitsform");
         Assert.Contains("data type 4", Fault(property.Type));
+        Assert.Equal(AecError.UnsupportedCode, Error(property.Type).Code);
         Assert.All(decoded.Properties.Where(p => p.Name != "Tværsnitsform"), p => Ok(p.Type));
     }
 
@@ -129,7 +131,9 @@ public class AecStreamTests
 
         AecDefinition decoded = Ok(AecStream.ReadDefinition(tokens));
 
-        Assert.Contains("automatic", Fault(decoded.Properties.Single(p => p.Name == "Tværsnitsform").Type));
+        Result<AecDataType, AecError> type = decoded.Properties.Single(p => p.Name == "Tværsnitsform").Type;
+        Assert.Contains("automatic", Fault(type));
+        Assert.Equal(AecError.UnsupportedCode, Error(type).Code);
     }
 
     [Fact]
@@ -152,6 +156,7 @@ public class AecStreamTests
         tokens[decoded.CountAt] = AecToken.Int32(24);
 
         Assert.Contains("counts 24", Fault(AecStream.ReadSet(tokens)));
+        Assert.Equal(AecError.StreamCode, Error(AecStream.ReadSet(tokens)).Code);
     }
 
     [Fact]
@@ -228,9 +233,11 @@ public class AecStreamTests
         empty => throw new Xunit.Sdk.XunitException($"item {empty.Id} read as empty"),
         unreadable => unreadable.Reason);
 
-    internal static T Ok<T>(Result<T> result) =>
-        result.Match(value => value, fault => throw new Xunit.Sdk.XunitException("Expected Ok, got Fault: " + fault));
+    internal static T Ok<T>(Result<T, AecError> result) =>
+        result.Match(value => value, error => throw new Xunit.Sdk.XunitException("Expected Ok, got Fault: " + error.Message));
 
-    internal static string Fault<T>(Result<T> result) =>
-        result.Match(value => throw new Xunit.Sdk.XunitException($"Expected Fault, got Ok: {value}"), fault => fault);
+    internal static AecError Error<T>(Result<T, AecError> result) =>
+        result.Match(value => throw new Xunit.Sdk.XunitException($"Expected Fault, got Ok: {value}"), error => error);
+
+    internal static string Fault<T>(Result<T, AecError> result) => Error(result).Message;
 }

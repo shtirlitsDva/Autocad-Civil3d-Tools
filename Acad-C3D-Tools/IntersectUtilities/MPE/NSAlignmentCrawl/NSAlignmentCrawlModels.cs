@@ -34,8 +34,11 @@ internal static class NSAlignmentCrawlConstants
     public const string OutputLayer = "0";
 }
 
-/// <summary>A pipe read from the xref, in host WCS, as ordered vertices + bulges (2D).</summary>
-internal sealed record CrawlPipe(IReadOnlyList<(Point2d Pt, double Bulge)> Vertices);
+/// <summary>
+/// A pipe read from the xref, in host WCS, as ordered vertices + bulges (2D). The layer is kept for
+/// TBLCRAWL, which needs to know which parts of a path run on frem or retur.
+/// </summary>
+internal sealed record CrawlPipe(IReadOnlyList<(Point2d Pt, double Bulge)> Vertices, string Layer);
 
 /// <summary>
 /// A component block read from the xref: its centre, MuffeIntern port positions, and (when present)

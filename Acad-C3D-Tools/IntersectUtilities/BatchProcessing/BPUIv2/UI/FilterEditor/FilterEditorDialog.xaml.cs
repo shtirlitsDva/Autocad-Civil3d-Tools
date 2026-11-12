@@ -1,5 +1,5 @@
 using System.Windows;
-using DimensioneringV2.UI;
+using IntersectUtilities.UI;
 using IntersectUtilities.BatchProcessing.BPUIv2.Core;
 using static IntersectUtilities.UtilsCommon.Utils;
 

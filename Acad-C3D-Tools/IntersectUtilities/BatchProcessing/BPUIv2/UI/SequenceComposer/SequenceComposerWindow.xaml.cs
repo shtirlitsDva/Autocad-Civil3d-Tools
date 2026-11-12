@@ -1,6 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
-using DimensioneringV2.UI;
+using IntersectUtilities.UI;
 using static IntersectUtilities.UtilsCommon.Utils;
 
 namespace IntersectUtilities.BatchProcessing.BPUIv2.UI.SequenceComposer

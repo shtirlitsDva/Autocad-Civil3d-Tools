@@ -178,7 +178,7 @@
 	     this project share (windows, view models, the property set tree, LER2MANHOLEQA), the
 	     same code BricsCAD runs. This project adds only the Civil 3D side of its seams and the
 	     heads (LER2.0\CivilPropertySetScanner.cs over the AEC API, LER2MANHOLEQA in
-	     LER2.0\LER2.0.cs). It needs AecPropertySetsSHARED's codec and unions (its BricsCAD
+	     LER2.0\LER2.0.cs). It needs AecPropertySetsSHARED's codec and AecError (its BricsCAD
 	     object layer stays out: NorsynHost is not BricsCAD here), the Norsyn WPF theme, and
 	     NorsynDrawingToolsManaged's progress port, linked file by file. -->
 	<PropertyGroup>
@@ -206,6 +206,7 @@
 	</PropertyGroup>
 	<ItemGroup>
 		<PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+		<PackageReference Include="CSharpFunctionalExtensions" Version="3.7.0" />
 		<PackageReference Include="Fluid.Core" Version="2.11.1" />
 		<PackageReference Include="Google.OrTools" Version="9.15.6755" />
 
@@ -247,14 +248,6 @@
 	  <EmbeddedResource Include="MPE\MatchBBR\Views\MatchBbrTheme.xaml">
 	    <LogicalName>IntersectUtilities.MPE.MatchBBR.MatchBbrTheme.xaml</LogicalName>
 	  </EmbeddedResource>
-	</ItemGroup>
-	<ItemGroup Condition="Exists('..\..\..\..\DamgaardRI\DimensioneringV2\src\DimensioneringV2.UI\UI\Theme.xaml')">
-	  <Page Include="..\..\..\..\DamgaardRI\DimensioneringV2\src\DimensioneringV2.UI\UI\Theme.xaml" Link="CmdUI\UI\Theme.xaml">
-	    <Generator>MSBuild:Compile</Generator>
-	  </Page>
-	</ItemGroup>
-	<ItemGroup Condition="Exists('..\..\..\..\DamgaardRI\DimensioneringV2\src\DimensioneringV2.UI\UI\DarkTitleBarHelper.cs')">
-	  <Compile Include="..\..\..\..\DamgaardRI\DimensioneringV2\src\DimensioneringV2.UI\UI\DarkTitleBarHelper.cs" Link="CmdUI\UI\DarkTitleBarHelper.cs" />
 	</ItemGroup>
 	<ItemGroup>
 	  <EmbeddedResource Include="DataScience\MergeReportStyles.css" />

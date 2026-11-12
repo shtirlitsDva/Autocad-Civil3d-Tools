@@ -111,6 +111,7 @@
 		<AssemblyName>NSTBL</AssemblyName>
 	</PropertyGroup>
 	<ItemGroup>
+		<PackageReference Include="CSharpFunctionalExtensions" Version="3.7.0" />
 		<PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
 		<PackageReference Include="Microsoft.VisualBasic" Version="10.3.0" />
 		<PackageReference Include="NetTopologySuite" Version="2.5.0" />

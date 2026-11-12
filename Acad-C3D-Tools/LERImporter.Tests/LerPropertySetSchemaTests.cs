@@ -24,8 +24,8 @@ public class LerPropertySetSchemaTests
                 ("LerNummer", AecDataType.Text),
             },
             def.Properties.Select(p => (p.Name, p.Type)));
-        Assert.Equal(Option<int>.Of(1), def.IdOf("Dybde"));
-        Assert.Equal(Option<int>.Nothing, def.IdOf("Ikke"));
+        Assert.Equal(Maybe.From(1), def.IdOf("Dybde"));
+        Assert.Equal(Maybe<int>.None, def.IdOf("Ikke"));
     }
 
     // xUnit wants public theories and the schema is internal, so the data type travels as
@@ -57,8 +57,12 @@ public class LerPropertySetSchemaTests
     [InlineData((short)1, "2.5")]
     [InlineData((short)0, 2.5)]
     [InlineData((short)0, "42")]
-    public void A_value_AEC_would_refuse_is_a_fault_naming_the_property(short type, object value) =>
-        Assert.Contains("Property Dybde", AecStreamTests.Fault(AecValue.From((AecDataType)type, value, "Dybde")));
+    public void A_value_AEC_would_refuse_is_a_fault_naming_the_property(short type, object value)
+    {
+        AecError error = AecStreamTests.Error(AecValue.From((AecDataType)type, value, "Dybde"));
+        Assert.Contains("Property Dybde", error.Message);
+        Assert.Equal(AecError.ValueCode, error.Code);
+    }
 
     private static object Raw(AecValue value) =>
         value.Match<object>(integer: i => i, real: d => d, text: s => s, trueFalse: b => b);

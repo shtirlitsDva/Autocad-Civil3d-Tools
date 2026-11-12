@@ -5,6 +5,11 @@ using System.Collections.Specialized;
 using Autodesk.Aec.PropertyData.DatabaseServices;
 using Autodesk.AutoCAD.DatabaseServices;
 
+// CSharpFunctionalExtensions has an Entity too (a DDD base class).
+using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
+
+using CSharpFunctionalExtensions;
+
 using IntersectUtilities.LerHatchLayers;
 using IntersectUtilities;
 
@@ -22,7 +27,7 @@ namespace LERImporter.Host.Acad;
 internal static class LerPropertySets
 {
     /// <summary>Adds the definition to the database unless one of that name is there.</summary>
-    public static Result<Unit> Define(Database db, LerSetDef def) => Boundary($"define {def.Name}", () =>
+    public static UnitResult<AecError> Define(Database db, LerSetDef def) => Host($"define {def.Name}", () =>
     {
         using (Transaction tx = db.TransactionManager.StartTransaction())
         {
@@ -30,29 +35,27 @@ internal static class LerPropertySets
             if (dictPropSetDef.Has(def.Name, tx))
             {
                 tx.Abort();
-                return Result<Unit>.Success(Unit.Value);
+                return;
             }
             PropertySetDefinition propSetDef = CreatePropertySetDefinition(db, def);
             dictPropSetDef.AddNewRecord(def.Name, propSetDef);
             tx.AddNewlyCreatedDBObject(propSetDef, true);
             tx.Commit();
         }
-        return Result<Unit>.Success(Unit.Value);
     });
 
     /// <summary>
     /// Attaches the definition's set to the entity, with the GML values, the
     /// graveforespørgsel's bemærkning and its LER number.
     /// </summary>
-    public static Result<Unit> Attach(
+    public static UnitResult<AecError> Attach(
         Database db, Entity ent, string setName, Dictionary<string, object> psData,
-        string? bemaerkning, string? lerNummer) => Boundary($"attach {setName} to {ent.Handle}", () =>
+        string? bemaerkning, string? lerNummer) => Host($"attach {setName} to {ent.Handle}", () =>
     {
         PropertySetManager.AttachNonDefinedPropertySet(db, ent, setName);
         PropertySetManager.PopulateNonDefinedPropertySet(db, ent, setName, psData);
         PropertySetManager.WriteNonDefinedPropertySetString(ent, setName, "GmlBemærkning", bemaerkning);
         PropertySetManager.WriteNonDefinedPropertySetString(ent, setName, "LerNummer", lerNummer);
-        return Result<Unit>.Success(Unit.Value);
     });
 
     public static LerHatchLayerResult<IReadOnlyList<LerHatchLayerSet>> ReadHatchLayerSets(Entity entity, Transaction tx) =>
@@ -89,16 +92,17 @@ internal static class LerPropertySets
         return propSetDef;
     }
 
-    /// <summary>The AEC-API boundary: what it throws becomes a fault.</summary>
-    private static Result<T> Boundary<T>(string what, Func<Result<T>> body)
+    /// <summary>The AEC-API boundary: what Civil 3D throws becomes a fault.</summary>
+    private static UnitResult<AecError> Host(string what, Action call)
     {
         try
         {
-            return body();
+            call();
+            return UnitResult.Success<AecError>();
         }
-        catch (System.Exception ex)
+        catch (Autodesk.AutoCAD.Runtime.Exception ex)
         {
-            return Result<T>.Failure($"Property sets, {what}: {ex}");
+            return UnitResult.Failure(AecError.Host(what, ex));
         }
     }
 }

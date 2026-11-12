@@ -12,13 +12,13 @@
        Consumers: LERImporter (writes the LER sets on BricsCAD) and NorsynDrawingToolsManaged
        in NorsynDrawingTools (the property set browser on BricsCAD).
 
-       AecStream, AecValues and Unions are pure and compile on every lane (the tests link
+       AecStream, AecValues and AecError are pure and compile on every lane (the tests link
        them). AecFilers, AecObjects and AecSets use BricsCAD's API and compile on the BricsCAD
        lane only (NorsynHost=BricsCAD, the host axis both repos build on): a managed file
        filer handed to Autodesk's AEC objects takes Civil 3D down (NorsynDrawingTools
        docs/rnd/ler-property-sets-native.md <risks>). On Civil, use the AEC API. -->
   <ItemGroup>
-    <Compile Include="$(MSBuildThisFileDirectory)Unions.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)AecError.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)AecValues.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)AecStream.cs" />
   </ItemGroup>

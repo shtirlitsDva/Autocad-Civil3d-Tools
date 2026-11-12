@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 
+using CSharpFunctionalExtensions;
+
 using Teigha.DatabaseServices;
 using Teigha.Geometry;
 using Teigha.Runtime;
@@ -11,7 +13,7 @@ namespace Norsyn.AecPropertySets;
 // MEASURED (V26.2, 2026-10-10) a copy filer's stream carries raw memory addresses
 // (WriteAddress) and cannot be replayed, while a file filer's carries only values and ids.
 // A filer must never throw into the host, so a call the stream does not hold is noted and
-// answered with a neutral value; the caller reads Error afterwards.
+// answered with a neutral value; the caller reads Error afterwards (None: there was none).
 
 /// <summary>Records what an object files: its DwgOut as tokens, its ids as slots.</summary>
 internal sealed class RecordingFiler : DwgFiler
@@ -23,8 +25,8 @@ internal sealed class RecordingFiler : DwgFiler
     public IReadOnlyList<AecToken> Tokens => _tokens;
     public IReadOnlyList<ObjectId> Ids => _ids;
 
-    /// <summary>The first call the token stream has no kind for, or "" when there was none.</summary>
-    public string Error { get; private set; } = "";
+    /// <summary>The first call the token stream has no kind for.</summary>
+    public Maybe<string> Error { get; private set; } = Maybe<string>.None;
 
     public override long Position => _tokens.Count;
     public override FilerType FilerType => FilerType.FileFiler;
@@ -34,7 +36,7 @@ internal sealed class RecordingFiler : DwgFiler
 
     private void Unexpected(string call)
     {
-        if (Error.Length == 0) Error = $"{call} at token {_tokens.Count}";
+        if (Error.HasNoValue) Error = Maybe.From($"{call} at token {_tokens.Count}");
     }
 
     private int Slot(ObjectId id)
@@ -111,8 +113,8 @@ internal sealed class ReplayFiler : DwgFiler
         _ids = ids;
     }
 
-    /// <summary>The first read the stream could not answer, or "" when there was none.</summary>
-    public string Error { get; private set; } = "";
+    /// <summary>The first read the stream could not answer.</summary>
+    public Maybe<string> Error { get; private set; } = Maybe<string>.None;
     public int Consumed => _next;
 
     public override long Position => _next;
@@ -121,32 +123,32 @@ internal sealed class ReplayFiler : DwgFiler
     public override void ResetFilerStatus() => _status = ErrorStatus.OK;
     public override void Seek(long offset, int method) { }
 
-    private Option<AecToken> Take(AecTokenKind kind)
+    private Maybe<AecToken> Take(AecTokenKind kind)
     {
-        if (Error.Length > 0) return Option<AecToken>.Nothing;
+        if (Error.HasValue) return Maybe<AecToken>.None;
         if (_next >= _tokens.Count)
         {
-            Error = $"read {kind} past the end ({_tokens.Count} tokens)";
-            return Option<AecToken>.Nothing;
+            Error = Maybe.From($"read {kind} past the end ({_tokens.Count} tokens)");
+            return Maybe<AecToken>.None;
         }
         AecToken token = _tokens[_next++];
-        if (token.Kind == kind) return Option<AecToken>.Of(token);
-        Error = $"read {kind} at token {_next - 1}, which is {token}";
-        return Option<AecToken>.Nothing;
+        if (token.Kind == kind) return Maybe.From(token);
+        Error = Maybe.From($"read {kind} at token {_next - 1}, which is {token}");
+        return Maybe<AecToken>.None;
     }
 
     private ObjectId Id(AecTokenKind kind) => Take(kind).Match(
         token =>
         {
             if (token.Integer >= 0 && token.Integer < _ids.Count) return _ids[(int)token.Integer];
-            Error = $"slot {token.Integer} at token {_next - 1} is not in the id table";
+            Error = Maybe.From($"slot {token.Integer} at token {_next - 1} is not in the id table");
             return ObjectId.Null;
         },
         () => ObjectId.Null);
 
     private void Unexpected(string call)
     {
-        if (Error.Length == 0) Error = $"{call} at token {_next}";
+        if (Error.HasNoValue) Error = Maybe.From($"{call} at token {_next}");
     }
 
     public override bool ReadBoolean() => Take(AecTokenKind.Bool).Match(t => t.Integer != 0, () => false);

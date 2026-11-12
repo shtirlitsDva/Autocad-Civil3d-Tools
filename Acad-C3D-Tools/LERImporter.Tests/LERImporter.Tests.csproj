@@ -13,13 +13,14 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
     <PackageReference Include="xunit" Version="2.9.2" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+    <PackageReference Include="CSharpFunctionalExtensions" Version="3.7.0" />
   </ItemGroup>
 
   <!-- The host-free part of LERImporter's property-set writer: the shared AEC filer-stream
-       codec (AecPropertySetsSHARED), the LER property-set schema and the unions they use.
+       codec (AecPropertySetsSHARED), its error contract and the LER property-set schema.
        Linked, so the tests build without AutoCAD or BricsCAD. -->
   <ItemGroup>
-    <Compile Include="..\AecPropertySetsSHARED\Unions.cs" Link="Sut\Unions.cs" />
+    <Compile Include="..\AecPropertySetsSHARED\AecError.cs" Link="Sut\AecError.cs" />
     <Compile Include="..\AecPropertySetsSHARED\AecValues.cs" Link="Sut\AecValues.cs" />
     <Compile Include="..\AecPropertySetsSHARED\AecStream.cs" Link="Sut\AecStream.cs" />
     <Compile Include="..\LERImporter\PropertySets\LerPropertySetSchema.cs" Link="Sut\LerPropertySetSchema.cs" />
@@ -32,6 +33,7 @@
   <ItemGroup>
     <Using Include="Xunit" />
     <Using Include="Norsyn.AecPropertySets" />
+    <Using Include="CSharpFunctionalExtensions" />
   </ItemGroup>
 
 </Project>

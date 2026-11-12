@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 
+using CSharpFunctionalExtensions;
+
 namespace LERImporter.PropertySets;
 
 /// <summary>
@@ -16,11 +18,11 @@ internal sealed record LerSetDef(string Name, string Description, IReadOnlyList<
     public static readonly IReadOnlyList<string> AppliesTo =
         new[] { "AcDbPolyline", "AcDb3dPolyline", "AcDbPoint", "AcDbHatch" };
 
-    public Option<int> IdOf(string propertyName)
+    public Maybe<int> IdOf(string propertyName)
     {
         for (int i = 0; i < Properties.Count; i++)
-            if (Properties[i].Name == propertyName) return Option<int>.Of(i);
-        return Option<int>.Nothing;
+            if (Properties[i].Name == propertyName) return Maybe.From(i);
+        return Maybe<int>.None;
     }
 
     /// <summary>

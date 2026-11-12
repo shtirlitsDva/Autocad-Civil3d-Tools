@@ -65,7 +65,7 @@ internal static class NSAlignmentCrawlNetworkReader
         return true;
     }
 
-    private static BlockReference? FindXref(Database hostDb, Transaction tr, string xrefName)
+    internal static BlockReference? FindXref(Database hostDb, Transaction tr, string xrefName)
     {
         BlockTable bt = (BlockTable)tr.GetObject(hostDb.BlockTableId, OpenMode.ForRead);
         BlockTableRecord ms = (BlockTableRecord)tr.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForRead);
@@ -131,7 +131,7 @@ internal static class NSAlignmentCrawlNetworkReader
             verts.Add((new Point2d(p.X, p.Y), pl.GetBulgeAt(i)));
         }
 
-        return new CrawlPipe(verts);
+        return new CrawlPipe(verts, pl.Layer);
     }
 
     private static List<Point2d> ReadMuffePorts(BlockReference br, Transaction tr, Matrix3d xform)

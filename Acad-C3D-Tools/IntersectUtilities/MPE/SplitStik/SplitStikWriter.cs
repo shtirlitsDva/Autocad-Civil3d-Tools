@@ -93,7 +93,7 @@ namespace IntersectUtilities.MPE.SplitStik
         }
 
         /// <summary>
-        /// Created up front, in its own transactions, because createltmethod starts a
+        /// Created up front, in its own transactions, because LinetypeCommands.Create starts a
         /// transaction of its own and opens the LinetypeTable for write — doing that while
         /// the main write transaction already holds the table open invites a lock conflict.
         /// </summary>
@@ -118,7 +118,8 @@ namespace IntersectUtilities.MPE.SplitStik
                 string name = "LT-" + text;
                 if (!existing.Add(name)) continue;
 
-                PlanDetailing.LineTypes.LineTypes.createltmethod(name, text, "Standard", db);
+                LineTypes.LinetypeCommands.Create(
+                    db, LineTypes.LinetypePreset.TextBothWays, name, text, "Standard", LineTypes.NoUprightFlags.Instance);
             }
         }
 
