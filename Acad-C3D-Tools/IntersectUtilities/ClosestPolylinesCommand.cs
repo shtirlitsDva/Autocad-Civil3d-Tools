@@ -14,14 +14,16 @@ namespace IntersectUtilities;
 public partial class Intersect
 {
     private const string ClosestPolylinesLayer = "0-REFERENCELINE";
-
     /// <command>CLOSESTPLINES</command>
     /// <summary>
-    /// Finds the shortest 3D distance between two polyline paths, including line and
-    /// arc interiors. Creates a connecting LINE on 0-REFERENCELINE and zooms to it.
-    /// Touching/intersecting paths are marked with a POINT instead of a zero-length line.
+    /// Finds the shortest 3D distance between two polyline paths, including line and arc interiors. Creates a
+    /// connecting LINE on 0-REFERENCELINE and zooms to it. Touching/intersecting paths are marked with a POINT
+    /// instead of a zero-length line.
     /// </summary>
     /// <category>Utilities</category>
+    /// <execution>
+    /// Run CLOSESTPLINES and select two ordinary polylines. The command reports the closest distance, draws a connector on 0-REFERENCELINE and zooms to it. Meeting polylines receive a point marker. Polyline widths are excluded; the measurement is between centrelines.
+    /// </execution>
     [CommandMethod("CLOSESTPLINES", CommandFlags.Modal | CommandFlags.UsePickSet)]
     public void ClosestPolylines()
     {

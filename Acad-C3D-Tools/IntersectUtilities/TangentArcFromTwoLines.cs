@@ -13,14 +13,16 @@ namespace IntersectUtilities;
 public partial class Intersect
 {
     private static double _lastTwoLineTangentArcLength = 2.5;
-
     /// <command>TANGENTARCFROMTWOLINES</command>
     /// <summary>
-    /// Tegner en bue med angivet buelængde tangent til to koplanare LINE-objekter.
-    /// Vælg linjerne på de ønskede sider af deres skæring. Radius beregnes fra
-    /// buelængden og vinklen. Linjerne ændres ikke; deres forlængelser kan anvendes.
+    /// Tegner en bue med angivet buelængde tangent til to koplanare LINE-objekter. Vælg linjerne på de ønskede
+    /// sider af deres skæring. Radius beregnes fra buelængden og vinklen. Linjerne ændres ikke; deres forlængelser
+    /// kan anvendes.
     /// </summary>
     /// <category>Utilities</category>
+    /// <execution>
+    /// Run TANGENTARCFROMTWOLINES, enter the desired arc length and select the two coplanar LINE objects on the sides where the arc should lie. Radius is calculated from length and angle. The source lines are preserved; tangent points may lie on their extensions. Use the project tables for appropriate full pipe lengths.
+    /// </execution>
     [CommandMethod("TANGENTARCFROMTWOLINES")]
     public void TangentArcFromTwoLines()
     {

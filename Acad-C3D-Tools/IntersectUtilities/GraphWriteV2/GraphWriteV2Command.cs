@@ -26,6 +26,10 @@ namespace IntersectUtilities
         /// <summary>
         /// Writes a DOT graph of the pipe system using Graph with QA and clustering.
         /// </summary>
+        /// <category>Graphs</category>
+        /// <execution>
+        /// Run GRAPHWRITEV2 in the FJV pipe/component drawing with valid project configuration. Connectivity is cleared and populated before the graph is written. Inspect the command history and generated DOT graph for QA and cluster results.
+        /// </execution>
         [CommandMethod("GRAPHWRITEV2")]
         public void graphwritev2()
         {

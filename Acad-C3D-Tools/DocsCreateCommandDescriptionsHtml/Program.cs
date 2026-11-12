@@ -12,7 +12,9 @@ namespace XmlToHtmlDoc
         {
             // 1. Read a list of XML file paths from DocsSources.txt
             //    Each line in DocsSources.txt should be a full path to an .xml file.
-            const string sourcesPath = @"X:\AutoCAD DRI - 01 Civil 3D\NetloadV2\2025\DocsSources.txt";
+            string sourcesPath = args.Length > 0
+                ? args[0]
+                : @"X:\AutoCAD DRI - 01 Civil 3D\NetloadV2\2025\DocsSources.txt";
             List<string> xmlPaths = File.ReadAllLines(sourcesPath)
                                         .Where(line => !string.IsNullOrWhiteSpace(line))
                                         .ToList();
@@ -53,6 +55,19 @@ namespace XmlToHtmlDoc
                         var commandValue = m.Element("command")?.Value?.Trim();
                         var categoryValue = m.Element("category")?.Value?.Trim();
                         var summaryValue = m.Element("summary")?.Value?.Trim();
+                        string documentationStatus = m.Elements("documentation").Attributes("status")
+                            .Select(attribute => attribute.Value.Trim()).DefaultIfEmpty("published").First();
+                        if (!string.Equals(documentationStatus, "published", StringComparison.OrdinalIgnoreCase))
+                            continue;
+
+                        string executionValue = m.Elements("execution").Select(element => element.Value.Trim())
+                            .DefaultIfEmpty(string.Empty).First();
+                        if (string.IsNullOrWhiteSpace(executionValue))
+                        {
+                            executionValue = string.Join(Environment.NewLine,
+                                m.Elements().Where(element => element.Name.LocalName == "remarks" || element.Name.LocalName == "example")
+                                    .Select(element => element.Value.Trim()).Where(value => !string.IsNullOrWhiteSpace(value)));
+                        }
 
                         // Only list if both <command> AND <category> are present
                         if (!string.IsNullOrEmpty(commandValue) && !string.IsNullOrEmpty(categoryValue))
@@ -66,7 +81,8 @@ namespace XmlToHtmlDoc
                                 new CommandInfo
                                 {
                                     Command = commandValue,
-                                    Summary = summaryValue ?? "(No summary provided)"
+                                    Summary = summaryValue ?? "(No summary provided)",
+                                    Execution = executionValue
                                 });
                         }
                     }
@@ -78,19 +94,20 @@ namespace XmlToHtmlDoc
             }
 
             // 3. Generate a SINGLE HTML file with collapsible regions
-            string outputHtmlPath = Path.Combine(
-                //Path.GetDirectoryName(sourcesPath) ?? ".",
-                @"X:\AutoCAD DRI - 01 Civil 3D\Commands",
-                "CommandsDoc.html");
+            // Optional paths allow generation and checking before replacing the shared page.
+            string outputHtmlPath = args.Length > 1
+                ? args[1]
+                : Path.Combine(@"X:\AutoCAD DRI - 01 Civil 3D\Commands", "CommandsDoc.html");
 
             using (var writer = new StreamWriter(outputHtmlPath))
             {
                 // Basic HTML structure
                 writer.WriteLine("<!DOCTYPE html>");
-                writer.WriteLine("<html>");
+                writer.WriteLine("<html lang='en'>");
                 writer.WriteLine("<head>");
                 writer.WriteLine("  <meta charset='utf-8'/>");
                 writer.WriteLine("  <title>AutoCAD Commands Documentation</title>");
+                writer.WriteLine("  <meta name='viewport' content='width=device-width, initial-scale=1'/>");
                 // Minimal inline CSS for readability
                 //CSS START
                 writer.WriteLine("  <style>");
@@ -106,8 +123,10 @@ namespace XmlToHtmlDoc
                    - We also use a background on <th> and .categoryRow 
                      that stands out on the dark background.
                 */
-                writer.WriteLine("    table { border-collapse: collapse; margin-left: 1em; width: 90%; border: 1px solid #444; }");
-                writer.WriteLine("    th, td { border: 1px solid #444; padding: 6px 10px; }");
+                writer.WriteLine("    table { border-collapse: collapse; width: 100%; table-layout: fixed; border: 1px solid #444; }");
+                writer.WriteLine("    th, td { border: 1px solid #444; padding: 8px 10px; text-align: left; vertical-align: top; overflow-wrap: anywhere; }");
+                writer.WriteLine("    .execution { white-space: pre-line; }");
+                writer.WriteLine("    .help { color: #bbb; line-height: 1.5; }");
                 writer.WriteLine("    th { background: #333; color: #fff; }");
                 writer.WriteLine("    .categoryRow { background: #555; font-weight: bold; }");
                 //CSS END
@@ -117,6 +136,7 @@ namespace XmlToHtmlDoc
 
                 writer.WriteLine("<body>");
                 writer.WriteLine("  <h1>AutoCAD Commands Documentation</h1>");
+                writer.WriteLine("  <p class='help'>Load an up-to-date version of the named library before running its commands. Expand a library below to see descriptions and execution instructions. Use F2 in AutoCAD to read the full command history. Development and superseded commands are omitted.</p>");
 
                 // Sort assemblies by name if you like
                 var sortedAssemblies = allAssembliesData.Keys.OrderBy(a => a).ToList();
@@ -124,14 +144,15 @@ namespace XmlToHtmlDoc
                 {
                     // <details> collapsible region for each assembly
                     writer.WriteLine("  <details>");
-                    writer.WriteLine($"    <summary>{asmName}</summary>");
+                    writer.WriteLine($"    <summary>{EscapeHtml(asmName)}</summary>");
                     writer.WriteLine("    <br/>");
 
                     // Insert a table
                     writer.WriteLine("    <table>");
                     writer.WriteLine("      <tr>");
-                    writer.WriteLine("        <th style='width: 30%;'>Command(s)</th>");
-                    writer.WriteLine("        <th>Summary</th>");
+                    writer.WriteLine("        <th style='width: 22%;'>Command(s)</th>");
+                    writer.WriteLine("        <th style='width: 34%;'>Description</th>");
+                    writer.WriteLine("        <th>Execution</th>");
                     writer.WriteLine("      </tr>");
 
                     // Sort categories if desired
@@ -140,7 +161,7 @@ namespace XmlToHtmlDoc
                     {
                         // A row for the Category
                         writer.WriteLine("      <tr class='categoryRow'>");
-                        writer.WriteLine($"        <td colspan='2'>{category}</td>");
+                        writer.WriteLine($"        <td colspan='3'>{EscapeHtml(category)}</td>");
                         writer.WriteLine("      </tr>");
 
                         var commandList = allAssembliesData[asmName][category];
@@ -149,6 +170,7 @@ namespace XmlToHtmlDoc
                             writer.WriteLine("      <tr>");
                             writer.WriteLine($"        <td>{EscapeHtml(cmdInfo.Command)}</td>");
                             writer.WriteLine($"        <td>{EscapeHtml(cmdInfo.Summary)}</td>");
+                            writer.WriteLine($"        <td class='execution'>{EscapeHtml(cmdInfo.Execution)}</td>");
                             writer.WriteLine("      </tr>");
                         }
                     }
@@ -179,7 +201,8 @@ namespace XmlToHtmlDoc
     // Data model for storing command + summary
     public class CommandInfo
     {
-        public string Command { get; set; }
-        public string Summary { get; set; }
+        public string Command { get; set; } = string.Empty;
+        public string Summary { get; set; } = string.Empty;
+        public string Execution { get; set; } = string.Empty;
     }
 }

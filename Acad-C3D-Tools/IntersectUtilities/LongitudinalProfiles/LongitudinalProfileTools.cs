@@ -6305,7 +6305,12 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
-
+        /// <command>MYPFPOLD</command>
+        /// <summary>
+        /// Legacy profile-conversion implementation retained for compatibility and comparison.
+        /// </summary>
+        /// <category>Longitudinal Profiles</category>
+        /// <documentation status="legacy" />
         [CommandMethod("MYPFPOLD")]
         public void profilefrompolyline()
         {
@@ -6485,12 +6490,17 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
-
         /// <command>MYPFP</command>
         /// <summary>
-        /// Creates a profile from a polyline in the selected profile view.
+        /// Creates a Civil 3D profile from a polyline, automatically selecting the relevant profile view with
+        /// manual fallback. Adjacent arcs use approximately 0.1 mm tangent pieces to retain the established AUDIT-
+        /// compatible construction.
         /// </summary>
         /// <category>Longitudinal Profiles</category>
+        /// <execution>
+        /// Run MYPFP and select the source polyline near the intended profile view. Auto selects the view; type Manual at the first prompt for separate view selection, or Auto to restore automatic selection. Ambiguous candidates use manual fallback.
+        /// The Auto/Manual setting is shared with POLYLINEFROMPROFILE and the five CHECKPROFILE commands while the plugin is loaded. The selected view is named in the command line. Adjacent arcs retain approximately 0.1 mm tangent pieces, so the conversion can still slightly reduce their radii.
+        /// </execution>
         [CommandMethod("MYPFP")]
         public void profilefrompolyline2()
         {
@@ -7210,12 +7220,15 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
-
         /// <command>POLYLINEFROMPROFILE</command>
         /// <summary>
-        /// Creates a polyline from a selected profile.
+        /// Creates a polyline from a Civil 3D profile using automatic profile-view selection, with a shared
+        /// Auto/Manual setting and manual fallback.
         /// </summary>
         /// <category>Longitudinal Profiles</category>
+        /// <execution>
+        /// Run POLYLINEFROMPROFILE and select the profile near the intended view. Auto selects a suitable view belonging to the profile alignment. Enter Manual for separate view selection or Auto to restore automatic selection. The setting is shared with MYPFP and the profile QA commands.
+        /// </execution>
         [CommandMethod("POLYLINEFROMPROFILE")]
         public void polylinefromprofile()
         {
@@ -8577,12 +8590,14 @@ namespace IntersectUtilities
         }
 
 #endif
-
-        /// <command>PLACEELEVATIONLABELS</command>
+        /// <command>PLACEELEVATIONLABEL</command>
         /// <summary>
         /// Labels elevations of parent profiles on MIDT profiles.
         /// </summary>
         /// <category>Longitudinal Profiles</category>
+        /// <execution>
+        /// Run PLACEELEVATIONLABEL in the longitudinal-profile drawing with the appropriate parent and MIDT profiles available. It places parent-profile elevation labels on MIDT profiles using the existing project references.
+        /// </execution>
         [CommandMethod("PLACEELEVATIONLABEL")]
         public void placeelevationlabel()
         {

@@ -112,20 +112,20 @@ namespace AcadOverrules
         /// <category>Overrules</category>
         [CommandMethod("TOGGLEDRAFTVERTICES")]
         public static void toggledraftvertices() => Toggle<DraftPolylineVerticeMark>();
-
         /// <command>TOGGLEPOLYVERTICES</command>
         /// <summary>
-        /// Restyles the polylines on the layers chosen in TOGGLEPOLYVERTICESSETTINGS.
-        /// Draws a circle at every vertex, styled by class: straight vertices and arc vertices
-        /// (the start and/or end vertex of an arc segment, as configured) each have their own
-        /// radius, colour, lineweight factor and linetype. Optionally replaces the polyline's
-        /// own graphics for straight and/or arc segments with a chosen colour, lineweight
-        /// factor and linetype, so a segment class can be told apart along its whole length.
-        /// Optionally shows the tangent intersection of every arc segment - the corner the two
-        /// straight segments would have made without the arc - as two tangent lines and a
-        /// circle, with the corner snappable by Center and Node object snap.
+        /// Restyles the polylines on the layers chosen in TOGGLEPOLYVERTICESSETTINGS. Draws a circle at every
+        /// vertex, styled by class: straight vertices and arc vertices (the start and/or end vertex of an arc
+        /// segment, as configured) each have their own radius, colour, lineweight factor and linetype. Optionally
+        /// replaces the polyline's own graphics for straight and/or arc segments with a chosen colour, lineweight
+        /// factor and linetype, so a segment class can be told apart along its whole length. Optionally shows the
+        /// tangent intersection of every arc segment - the corner the two straight segments would have made without
+        /// the arc - as two tangent lines and a circle, with the corner snappable by Center and Node object snap.
         /// </summary>
         /// <category>Overrules</category>
+        /// <execution>
+        /// First run TOGGLEPOLYVERTICESSETTINGS to choose layers and styling. Run TOGGLEPOLYVERTICES to enable or disable the overlay. Optional arc-tangent intersection markers support Center and Node snaps when enabled.
+        /// </execution>
         [CommandMethod("TOGGLEPOLYVERTICES")]
         public static void togglepolyvertices() =>
             SetPolyVerticesActive(!IsOverruleActive<PolylineVertexCircles>());
@@ -150,18 +150,18 @@ namespace AcadOverrules
 
             SetOverruleActive<PolylineVertexCircles>(active);
         }
-
         /// <command>TOGGLEPOLYVERTICESSETTINGS</command>
         /// <summary>
-        /// Opens the settings window for TOGGLEPOLYVERTICES: which layers the overrule applies
-        /// to (layer names and AutoCAD wildcard masks), the circle style per vertex class,
-        /// which arc vertices (start, end) count as arc vertices, and the optional segment
-        /// overrides for straight and arc segments, and whether and how the tangent
-        /// intersections of arc segments are shown. Settings are grouped in named profiles;
-        /// the active profile is saved when the window closes. Edits preview live in the
-        /// drawing.
+        /// Opens the settings window for TOGGLEPOLYVERTICES: which layers the overrule applies to (layer names and
+        /// AutoCAD wildcard masks), the circle style per vertex class, which arc vertices (start, end) count as arc
+        /// vertices, and the optional segment overrides for straight and arc segments, and whether and how the
+        /// tangent intersections of arc segments are shown. Settings are grouped in named profiles; the active
+        /// profile is saved when the window closes. Edits preview live in the drawing.
         /// </summary>
         /// <category>Overrules</category>
+        /// <execution>
+        /// Run TOGGLEPOLYVERTICESSETTINGS. Choose or create a settings profile, select layer names or wildcard masks, and adjust vertex/segment styles and tangent-intersection display. Changes preview live; the active profile is saved when the window closes.
+        /// </execution>
         [CommandMethod("TOGGLEPOLYVERTICESSETTINGS")]
         public static void togglepolyverticessettings()
         {
@@ -175,13 +175,14 @@ namespace AcadOverrules
                     $"\nFailed to open the vertex circles settings: {ex}\n");
             }
         }
-
         /// <command>TOGGELPOLYVERTICESSETTINGS</command>
         /// <summary>
-        /// Alias for TOGGLEPOLYVERTICESSETTINGS, kept because the command was first asked for
-        /// under this spelling.
+        /// Alias for TOGGLEPOLYVERTICESSETTINGS, kept because the command was first asked for under this spelling.
         /// </summary>
         /// <category>Overrules</category>
+        /// <execution>
+        /// Compatibility alias: run TOGGLEPOLYVERTICESSETTINGS for the same settings window. Both spellings remain registered.
+        /// </execution>
         [CommandMethod("TOGGELPOLYVERTICESSETTINGS")]
         public static void toggelpolyverticessettings() => togglepolyverticessettings();
     }

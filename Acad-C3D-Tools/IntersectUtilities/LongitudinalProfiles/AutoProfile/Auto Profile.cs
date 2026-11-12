@@ -540,7 +540,12 @@ namespace IntersectUtilities
             prdDbg("Done!");
         }
 #endif
-
+        /// <command>APEXPORTPLINE</command>
+        /// <summary>
+        /// AutoProfile geometry diagnostic exporting to a fixed development JSON path.
+        /// </summary>
+        /// <category>Development</category>
+        /// <documentation status="development" />
         [CommandMethod("APEXPORTPLINE")]
         public void apexportpline()
         {

@@ -11,11 +11,14 @@ public partial class Intersect
 {
     /// <command>LERPROBE</command>
     /// <summary>
-    /// Select a polyline inside an xref and inspect its attached AEC property
-    /// sets in a searchable, read-only modeless table. Draws the complete selected polyline
-    /// in bright red (blue for a red pipe) while the window is open. Pan/zoom remain available.
+    /// Select a polyline inside an xref and inspect its attached AEC property sets in a searchable, read-only
+    /// modeless table. Draws the complete selected polyline in bright red (blue for a red pipe) while the window is
+    /// open. Pan/zoom remain available.
     /// </summary>
     /// <category>LER</category>
+    /// <execution>
+    /// Run LERPROBE and select a polyline inside a loaded LER xref. Search the property-set table and copy selected rows with Ctrl+C. The selected pipe is highlighted while the window is open; pan and zoom remain available. Close the window to remove the highlight.
+    /// </execution>
     [CommandMethod("LERPROBE", CommandFlags.Modal)]
     public void LerProbe()
     {

@@ -20,14 +20,15 @@ namespace IntersectUtilities
     public partial class Intersect
     {
         private const double CombineRadiusPairTolerance = 2.0;
-
         /// <command>COMBINERADIUSPAIRS, KOMBINERRADIUSPAR, CRP, KRP</command>
         /// <summary>
-        /// Kombinerer RadialDimension-par fra LABELARCS til én radiusdimension i midten.
-        /// Pickfirst-selection behandles automatisk. Uden pickfirst kan brugeren vælge
-        /// automatisk gruppering eller manuelle par.
+        /// Kombinerer RadialDimension-par fra LABELARCS til én radiusdimension i midten. Pickfirst-selection
+        /// behandles automatisk. Uden pickfirst kan brugeren vælge automatisk gruppering eller manuelle par.
         /// </summary>
         /// <category>Fjernvarme Fremtidig</category>
+        /// <execution>
+        /// Select radius dimensions, then run CRP or COMBINERADIUSPAIRS. Choose Auto to pair the selection automatically or Par to pick dimensions in pairs. The combined value is the mean of the two radii. Running LABELARCS again recreates the dimensions, so pairing must then be repeated.
+        /// </execution>
         [CommandMethod("COMBINERADIUSPAIRS", CommandFlags.UsePickSet)]
         [CommandMethod("KOMBINERRADIUSPAR", CommandFlags.UsePickSet)]
         [CommandMethod("CRP", CommandFlags.UsePickSet)]

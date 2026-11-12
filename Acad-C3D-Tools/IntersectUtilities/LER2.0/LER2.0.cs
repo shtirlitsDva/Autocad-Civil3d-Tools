@@ -2108,7 +2108,16 @@ namespace IntersectUtilities
                 #endregion
             }
         }
-
+        /// <command>LER2TRANSFORM3DELEVATIONS</command>
+        /// <summary>
+        /// Transfers valid sewer-component Bundkote values into matching 3D LER vertices for the configured
+        /// KLAR/Køge owners and saves the 3D drawings.
+        /// </summary>
+        /// <category>LER2</category>
+        /// <execution>
+        /// Run LER2TRANSFORM3DELEVATIONS, choose the folder containing *_3DLER.dwg files, then the 2D LER drawing with Afloebskomponent points. The workflow is restricted to KLAR Forsyning A/S and Køge Kommune and excludes dæksel points.
+        /// Matching pipe vertices within 0.001 drawing units in XY receive the lowest valid matching Bundkote. The 3D DWG files are saved in place; this is a project-specific batch edit.
+        /// </execution>
         [CommandMethod("LER2TRANSFORM3DELEVATIONS")]
         public void ler2transform3delevations()
         {

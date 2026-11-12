@@ -369,7 +369,12 @@ namespace IntersectUtilities
                     tr.Commit();
                 }
             }
-
+            /// <command>BPJIG</command>
+            /// <summary>
+            /// Example jig retained for development; excluded from the public command list.
+            /// </summary>
+            /// <category>Development</category>
+            /// <documentation status="development" />
             [CommandMethod("BPJIG")]
             public static void RunBulgePolyJig()
             {

@@ -117,12 +117,14 @@ namespace IntersectUtilities
         [CommandMethod("LISTINTLAYCHECKALL")]
         public void listintlaycheck() =>
             LER.LerLayers.CheckAll(Application.DocumentManager.MdiActiveDocument.Database);
-
-        /// <command>CONVERTLINESTOPOLIES</command>
+        /// <command>CONVERTLINESTOPOLIESPSS</command>
         /// <summary>
-        /// Converts all lines in the drawing to polylines.
+        /// Converts drawing LINE objects to polylines and replaces the original lines.
         /// </summary>
         /// <category>Miscellaneous</category>
+        /// <execution>
+        /// Run CONVERTLINESTOPOLIESPSS in the drawing to convert LINE objects to polylines. The original LINE objects are erased after replacement. The command processes the drawing rather than a picked selection; use UNDO to reverse the operation.
+        /// </execution>
         [CommandMethod("CONVERTLINESTOPOLIESPSS")]
         public void convertlinestopoliespss()
         {
@@ -3973,12 +3975,14 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
-
-        /// <command>CONVERT3DPOLIESTOPOLIESPSS</command>
+        /// <command>CONVERTPOLIESTO3DPOLIESPSS</command>
         /// <summary>
-        /// Converts 3D polylines to polylines and copies property sets.
+        /// Converts 2D polylines to 3D polylines and copies their property sets, layer and colour.
         /// </summary>
         /// <category>Polylines</category>
+        /// <execution>
+        /// Define the required property-set definitions in the drawing first. Run CONVERTPOLIESTO3DPOLIESPSS to convert the drawing 2D polylines into simple 3D polylines, preserving layer, colour and copied property sets. Source polylines are replaced.
+        /// </execution>
         [CommandMethod("CONVERTPOLIESTO3DPOLIESPSS")]
         public void convertpoliesto3dpoliespss()
         {
@@ -4277,21 +4281,21 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
-
         /// <command>PRINTPIPEVOLUMESUMMARY</command>
         /// <summary>
-        /// Udskriver en samlet volumen- og længdeoversigt for alle rør i Model Space baseret på PipeScheduleV2-data.
-        /// Kommandoen henter alle polylines, identificerer tilhørende rørparametre (system, type, DN, indvendig diameter)
-        /// og grupperer dem efter (system–type–DN) til én samlet linje pr. kategori.
-        /// ENKELT-rør kan behandles som dobbelt længde, hvis de er tegnet som én polyline.
-        /// Twin-rør tælles automatisk dobbelt i volumenberegningen.
-        /// Grøftelængden er lig rørlængden for Twin og halvdelen af rørlængden for ENKELT.
-        /// Output sorteres efter system (STÅL først), derefter DN faldende og til sidst type (ENKELT før Twin).
-        /// Anvendes til hurtig mængdeudtræk af rørlængder og volumen direkte fra tegningen.
+        /// Udskriver en samlet volumen- og længdeoversigt for alle rør i Model Space baseret på
+        /// PipeScheduleV2-data. Kommandoen henter alle polylines, identificerer tilhørende rørparametre (system,
+        /// type, DN, indvendig diameter) og grupperer dem efter (system–type–DN) til én samlet linje pr. kategori.
+        /// ENKELT-rør kan behandles som dobbelt længde, hvis de er tegnet som én polyline. Twin-rør tælles
+        /// automatisk dobbelt i volumenberegningen. Grøftelængden er lig rørlængden for Twin og halvdelen af
+        /// rørlængden for ENKELT. Output sorteres efter system (STÅL først), derefter DN faldende og til sidst type
+        /// (ENKELT før Twin). Anvendes til hurtig mængdeudtræk af rørlængder og volumen direkte fra tegningen.
         /// Komandoen tager ikke højde for komponenter.
         /// </summary>
         /// <category>PipeSchedule</category>
-
+        /// <execution>
+        /// Run PRINTPIPEVOLUMESUMMARY in the pipe drawing and answer the ENKELT length-representation prompt. Review the grouped system/type/DN table and TOTAL in F2. Trench length equals Twin pipe length and half the combined ENKELT pipe length. Components are outside the calculation.
+        /// </execution>
         [CommandMethod("PRINTPIPEVOLUMESUMMARY")]
         public static void PrintPipeVolumeSummaryAllInOne()
         {
@@ -4573,7 +4577,14 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
-
+        /// <command>BBRFROMPTSDE</command>
+        /// <summary>
+        /// Creates project-specific BBR blocks from Oststadt Object Data points, copying FeatId and LeistungMV.
+        /// </summary>
+        /// <category>Project-specific Imports</category>
+        /// <execution>
+        /// Use only with the Oststadt Object Data schema Leistungsangaben_Oststadt containing FeatId and LeistungMV. With the Naturgas block definition available, run BBRFROMPTSDE. It creates blocks at DBPoints and copies those field values directly; no unit conversion is performed.
+        /// </execution>
         [CommandMethod("BBRFROMPTSDE")]
         public void bbrfromptsde()
         {
@@ -4613,7 +4624,14 @@ namespace IntersectUtilities
 
             tx.Commit();
         }
-
+        /// <command>BBRFROMPTS</command>
+        /// <summary>
+        /// Creates verification BBR blocks from drawing points, numbering them along a directed polyline tree.
+        /// </summary>
+        /// <category>Project-specific Imports</category>
+        /// <execution>
+        /// Use only for the verification-data workflow: DBPoints and a directed, tree-shaped polyline network must be present, with the Naturgas block definition available. Run BBRFROMPTS without selecting objects. It creates blocks at the points, assigns STR-based addresses and the Verificering district, and generates new IDs.
+        /// </execution>
         [CommandMethod("BBRFROMPTS")]
         public void bbrfrompts()
         {

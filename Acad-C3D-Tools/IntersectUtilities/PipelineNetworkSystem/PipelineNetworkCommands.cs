@@ -111,7 +111,15 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
-
+        /// <command>GRAPHSEGMENTS</command>
+        /// <summary>
+        /// Builds the FJV pipeline and segment graphs using referenced alignments and exports segment graphs as
+        /// DOT.
+        /// </summary>
+        /// <category>Graphs</category>
+        /// <execution>
+        /// Run GRAPHSEGMENTS in FJV Fremtid and select the project/data references when prompted. The command refreshes connectivity, loads the referenced alignments and writes segment graphs to DOT. Inspect progress and output in F2.
+        /// </execution>
         [CommandMethod("GRAPHSEGMENTS")]
         public void graphsegments()
         {

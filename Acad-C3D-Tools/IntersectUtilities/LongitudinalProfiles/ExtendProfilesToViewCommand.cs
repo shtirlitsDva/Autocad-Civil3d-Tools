@@ -11,8 +11,13 @@ namespace IntersectUtilities
     public partial class Intersect
     {
         /// <command>EXTENDPROFILESTOVIEW</command>
-        /// <summary>Extends TOP, MIDT and BUND to profile-view limits along their end slopes, within 1 m.</summary>
+        /// <summary>
+        /// Extends TOP, MIDT and BUND to profile-view limits along their end slopes, within 1 m.
+        /// </summary>
         /// <category>Longitudinal Profiles</category>
+        /// <execution>
+        /// Run EXTENDPROFILESTOVIEW in the active drawing; no selection is required. TOP, MIDT and BUND ends missing at most 1 m are extended to the corresponding profile-view boundary along their end slopes. Larger gaps are left for manual review and reported in F2. The two ends are treated independently. Drawing units must be metres; one UNDO reverses the operation.
+        /// </execution>
         [CommandMethod("EXTENDPROFILESTOVIEW", CommandFlags.Modal)]
         public void ExtendProfilesToView() => LongitudinalProfiles.ExtendProfilesToViewCommand.Run();
     }

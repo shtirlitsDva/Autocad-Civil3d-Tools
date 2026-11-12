@@ -14,6 +14,9 @@ namespace IntersectUtilities
         /// Copies text rotation from a selected MText or MLeader to another MText or MLeader.
         /// </summary>
         /// <category>Text</category>
+        /// <execution>
+        /// Run KOPIROT or KOPIERROTATION. Select the MTEXT or text-bearing MLEADER with the desired rotation, then select the target. Only text rotation is copied; content and position are preserved.
+        /// </execution>
         [CommandMethod("KOPIROT")]
         [CommandMethod("KOPIERROTATION")]
         public void CopyMTextOrMLeaderRotation()
