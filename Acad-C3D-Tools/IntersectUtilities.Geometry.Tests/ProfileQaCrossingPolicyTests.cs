@@ -1,0 +1,77 @@
+using IntersectUtilities.LongitudinalProfiles.Quality;
+
+public sealed class ProfileQaCrossingPolicyTests
+{
+    [Theory]
+    [InlineData("Afløbsledning", "", true)]
+    [InlineData("Afløbsledning_UAD", "", false)]
+    [InlineData("Regnvandsledning", "", true)]
+    [InlineData("Spildevandsledning", "", true)]
+    [InlineData("Ukendt lag", "ø0, Spildevand, Kote Ukendt.", true)]
+    [InlineData("EL-Forsyningskabel-10kV", "", true)]
+    [InlineData("EL-Forsyningskabel-10kV_UAD", "", false)]
+    [InlineData("EL-Forsyningskabel-30kV", "", true)]
+    [InlineData("EL-Forsyningskabel-60kV", "", true)]
+    [InlineData("EL-Forsyningskabel-132kV", "", true)]
+    [InlineData("EL-Forsyningskabel-400kV", "", true)]
+    [InlineData("EL-Forsyningskabel-9,9kV", "", true)]
+    [InlineData("EL-Forsyningskabel-10,0kV", "", true)]
+    [InlineData("EL-Forsyningskabel-4kV", "", true)]
+    [InlineData("EL-Forsyningskabel-10.4kV", "", true)]
+    [InlineData("EL-Forsyningskabel-0.4kV", "", false)]
+    [InlineData("EL-Forsyningskabel-0,4kV_UAD", "", false)]
+    [InlineData("EL-Forsyningskabel-0,40 kV-2D", "", false)]
+    [InlineData("0-EL_04kV_UAD", "", false)]
+    [InlineData("EL-04kV_kabel", "", false)]
+    [InlineData("EL-Vejbelysningskabel", "", false)]
+    [InlineData("EL-Vejbelysningskabel_UAD", "", false)]
+    [InlineData("EL-HS", "", true)]
+    [InlineData("TELE-Fiber", "", false)]
+    [InlineData("tele-kobber", "", false)]
+    [InlineData("Ledningstrace-Telekommunikation", "", false)]
+    [InlineData("KOM", "", false)]
+    [InlineData("0-KOM_UAD", "", false)]
+    [InlineData("KOM-10kV", "", false)]
+    [InlineData("Ledningstrace-Kommunikation", "", false)]
+    [InlineData("Ukendt lag", "KOM, dybde ≈ 35-75 cm, Kote Ukendt.", false)]
+    [InlineData("Ukendt lag", "VBL, dybde ≈ 35-75 cm, Kote Ukendt.", false)]
+    [InlineData("Ukendt lag", "Telekabel, dybde ≈ 35-75 cm", false)]
+    [InlineData("Ukendt lag", "Vejbelysning, Kote Ukendt.", false)]
+    [InlineData("Ukendt lag", "EL, 0.4kV, dybde ≈ 35-75cm", false)]
+    [InlineData("GAS-Stikledning", "", true)]
+    [InlineData("Vandledning_L2", "ø1200, Vand, dybde ≈ 110 cm, Kote Ukendt.", true)]
+    [InlineData("Fjv-Distr", "", true)]
+    [InlineData("EL-Elledning-Ukendt", "EL-NS, dybde ≈ 35-75cm, Kote Ukendt.", true)]
+    [InlineData("Beskyttelsesrør", "Foringsrør EL", true)]
+    [InlineData("Ny forsyningsart", "Kote Ukendt.", true)]
+    [InlineData("Komponentledning", "", true)]
+    [InlineData("", "", true)]
+    public void UnknownDepthUsesBlacklistAndIncludesOtherUtilities(string layer, string description, bool expected)
+    {
+        Assert.Equal(expected, QaCrossingPolicy.ReviewUnknownDepth(layer, description));
+    }
+
+    [Theory]
+    [InlineData(false, "GAS-Stikledning_UAD", "K: 35,45, ø20, Gas", false)]
+    [InlineData(true, "GAS-Stikledning_UAD", "Kote Ukendt.", false)]
+    [InlineData(false, "Afløbsledning_UAD", "K: 45,69, ø150 Beton", false)]
+    [InlineData(true, "EL-Forsyningskabel-10kV_UAD", "Kote Ukendt.", false)]
+    [InlineData(false, "Vandledning_L2_uad", "K: 28,34, Vand", false)]
+    [InlineData(false, "GAS-Stikledning", "K: 34,95, ø40, Gas, ude af drift", false)]
+    [InlineData(true, "Vandledning", "UDE AF DRIFT, Kote Ukendt.", false)]
+    [InlineData(false, "Afløbsledning", "UAD", false)]
+    [InlineData(true, "Ukendt lag", "ude  af   drift", false)]
+    [InlineData(false, "TELE-Fiber", "K: 30,00", true)]
+    [InlineData(false, "KOM", "K: 30,00", true)]
+    [InlineData(false, "EL-Forsyningskabel-0.4kV", "K: 30,00", true)]
+    [InlineData(false, "EL-Vejbelysningskabel", "K: 30,00", true)]
+    [InlineData(true, "TELE-Fiber", "Kote Ukendt.", false)]
+    [InlineData(false, "GAS-Stikledning", "K: 34,95, Gas", true)]
+    [InlineData(true, "Vandledning", "Kote Ukendt.", true)]
+    [InlineData(true, "EL-Forsyningskabel-10kV", "Kote Ukendt.", true)]
+    [InlineData(false, "Guadalupeledning", "", true)]
+    public void OutOfServiceIsExcludedAtEveryDepthWhileOtherExclusionsRemainUnknownOnly(bool unknownDepth, string layer, string description, bool expected)
+    {
+        Assert.Equal(expected, QaCrossingPolicy.IncludeCrossing(unknownDepth, layer, description));
+    }
+}

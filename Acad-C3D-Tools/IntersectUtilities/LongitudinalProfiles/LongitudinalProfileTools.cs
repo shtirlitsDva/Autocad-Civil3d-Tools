@@ -6505,32 +6505,24 @@ namespace IntersectUtilities
                 {
                     // Workaround flag: when true, shrinks R for polyline arcs adjacent to
                     // another arc so Civil 3D's free-curve resolver leaves a tiny tangent
-                    // (~10mm total) between them instead of touching curves AUDIT removes.
+                    // (~0.1mm total) between them instead of touching curves AUDIT removes.
                     // Set to false to restore original behavior.
                     const bool USE_TINY_TANGENT_WORKAROUND = true;
-                    const double HALF_GAP = 0.005;  // 5mm per side -> 10mm between adjacent arcs
+                    const double HALF_GAP = 0.00005;  // 0.05mm per side -> 0.1mm between adjacent arcs
 
                     #region Selection of polyline and profile view
-                    PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
-                                    "\n Select a polyline : ");
-                    promptEntityOptions1.SetRejectMessage("\n Not a polyline");
-                    promptEntityOptions1.AddAllowedClass(typeof(Polyline), true);
-                    PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
-                    if (((PromptResult)entity1).Status != PromptStatus.OK)
+                    PromptEntityResult entity1 = ProfileConversionSelection.SelectSource(
+                        editor, typeof(Polyline), "polyline");
+                    if (entity1.Status != PromptStatus.OK)
                         return;
                     Autodesk.AutoCAD.DatabaseServices.ObjectId plObjId = entity1.ObjectId;
-                    PromptEntityOptions promptEntityOptions2 = new PromptEntityOptions(
-                        "\n Select a ProfileView: "
-                    );
-                    promptEntityOptions2.SetRejectMessage("\n Not a ProfileView");
-                    promptEntityOptions2.AddAllowedClass(typeof(ProfileView), true);
-                    PromptEntityResult entity2 = editor.GetEntity(promptEntityOptions2);
-                    if (((PromptResult)entity2).Status != PromptStatus.OK)
+                    var viewSelection = ProfileConversionSelection.SelectView(editor, tx, entity1);
+                    if (!viewSelection.Accepted)
                         return;
                     #endregion
 
                     #region PV and style
-                    ProfileView pv = entity2.ObjectId.Go<ProfileView>(tx, OpenMode.ForWrite);
+                    ProfileView pv = viewSelection.ViewId.Go<ProfileView>(tx, OpenMode.ForWrite);
                     double x = 0.0;
                     double y = 0.0;
                     if (pv.ElevationRangeMode == ElevationRangeType.Automatic)
@@ -7236,25 +7228,16 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
-                        "\n Select a Profile: "
-                    );
-                    promptEntityOptions1.SetRejectMessage("\n Not a profile!");
-                    promptEntityOptions1.AddAllowedClass(typeof(Profile), true);
-                    PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
-                    if (((PromptResult)entity1).Status != PromptStatus.OK)
+                    PromptEntityResult entity1 = ProfileConversionSelection.SelectSource(
+                        editor, typeof(Profile), "profile");
+                    if (entity1.Status != PromptStatus.OK)
                         return;
                     Profile profile = entity1.ObjectId.Go<Profile>(tx);
 
-                    PromptEntityOptions promptEntityOptions2 = new PromptEntityOptions(
-                        "\n Select a ProfileView: "
-                    );
-                    promptEntityOptions2.SetRejectMessage("\n Not a ProfileView");
-                    promptEntityOptions2.AddAllowedClass(typeof(ProfileView), true);
-                    PromptEntityResult entity2 = editor.GetEntity(promptEntityOptions2);
-                    if (((PromptResult)entity2).Status != PromptStatus.OK)
+                    var viewSelection = ProfileConversionSelection.SelectView(editor, tx, entity1);
+                    if (!viewSelection.Accepted)
                         return;
-                    ProfileView profileView = entity2.ObjectId.Go<ProfileView>(tx);
+                    ProfileView profileView = viewSelection.ViewId.Go<ProfileView>(tx);
 
                     var pline = profile.ToPolyline(profileView);
 

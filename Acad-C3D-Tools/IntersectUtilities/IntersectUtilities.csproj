@@ -103,6 +103,21 @@
 			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\C3D\AeccDataShortcutMgd.dll</HintPath>
 			<Private>False</Private>
 		</Reference>
+		<Reference Include="Autodesk.AutoCAD.Interop.Common">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\Autodesk.AutoCAD.Interop.Common.dll</HintPath>
+			<EmbedInteropTypes>True</EmbedInteropTypes>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="Autodesk.AEC.Interop.Base">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\ACA\Autodesk.AEC.Interop.Base.dll</HintPath>
+			<EmbedInteropTypes>True</EmbedInteropTypes>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="Autodesk.AECC.Interop.Land">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\C3D\Autodesk.AECC.Interop.Land.dll</HintPath>
+			<EmbedInteropTypes>True</EmbedInteropTypes>
+			<Private>False</Private>
+		</Reference>
 		<Reference Include="AeccDbMgd">
 			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\C3D\AeccDbMgd.dll</HintPath>
 			<Private>False</Private>
