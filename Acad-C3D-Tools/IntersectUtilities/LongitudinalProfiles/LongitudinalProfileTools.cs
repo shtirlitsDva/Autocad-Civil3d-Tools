@@ -3612,7 +3612,7 @@ namespace IntersectUtilities
                                             //);
 
                                             location = alPlDict[al].GetClosestPointTo(
-                                                pline.GetPoint3dAt(i + 1),
+                                                pline.GetPoint3dAt(i),
                                                 false
                                             );
 
