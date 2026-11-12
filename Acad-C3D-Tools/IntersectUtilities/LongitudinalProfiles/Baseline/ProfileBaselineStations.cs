@@ -3,11 +3,11 @@ using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
 using Autodesk.AutoCAD.Runtime;
 using Autodesk.Civil.DatabaseServices;
-using Norsyn.AecPropertySets;
+using IntersectUtilities.LongitudinalProfiles;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Unit = Norsyn.AecPropertySets.Unit;
+using Unit = IntersectUtilities.LongitudinalProfiles.Unit;
 
 namespace IntersectUtilities.LongitudinalProfiles.Baseline;
 

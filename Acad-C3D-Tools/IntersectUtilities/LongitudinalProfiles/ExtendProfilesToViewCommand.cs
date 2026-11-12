@@ -2,9 +2,9 @@ using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Runtime;
 using Autodesk.Civil.ApplicationServices;
 using Autodesk.Civil.DatabaseServices;
-using Norsyn.AecPropertySets;
+using IntersectUtilities.LongitudinalProfiles;
 using AcApplication = Autodesk.AutoCAD.ApplicationServices.Core.Application;
-using Unit = Norsyn.AecPropertySets.Unit;
+using Unit = IntersectUtilities.LongitudinalProfiles.Unit;
 
 namespace IntersectUtilities
 {

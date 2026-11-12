@@ -1,4 +1,4 @@
-using Norsyn.AecPropertySets;
+using IntersectUtilities.LongitudinalProfiles;
 
 namespace IntersectUtilities.LongitudinalProfiles;
 

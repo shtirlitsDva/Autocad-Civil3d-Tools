@@ -4,12 +4,12 @@ using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
 using Autodesk.AutoCAD.Geometry;
 using Autodesk.AutoCAD.Runtime;
-using Norsyn.AecPropertySets;
+using IntersectUtilities.LongitudinalProfiles;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
-using Unit = Norsyn.AecPropertySets.Unit;
+using Unit = IntersectUtilities.LongitudinalProfiles.Unit;
 
 namespace IntersectUtilities
 {

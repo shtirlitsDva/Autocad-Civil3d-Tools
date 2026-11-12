@@ -1,5 +1,4 @@
 using IntersectUtilities.LongitudinalProfiles;
-using Norsyn.AecPropertySets;
 
 namespace IntersectUtilities.Geometry.Tests;
 

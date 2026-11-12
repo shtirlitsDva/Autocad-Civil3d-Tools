@@ -5,10 +5,10 @@ using Autodesk.Civil.ApplicationServices;
 using Autodesk.Civil.DatabaseServices;
 using Autodesk.Civil.DatabaseServices.Styles;
 using Autodesk.AECC.Interop.Land;
-using Norsyn.AecPropertySets;
+using IntersectUtilities.LongitudinalProfiles;
 using AcApplication = Autodesk.AutoCAD.ApplicationServices.Core.Application;
 using CivilObject = Autodesk.Civil.DatabaseServices.DBObject;
-using Unit = Norsyn.AecPropertySets.Unit;
+using Unit = IntersectUtilities.LongitudinalProfiles.Unit;
 
 namespace IntersectUtilities
 {

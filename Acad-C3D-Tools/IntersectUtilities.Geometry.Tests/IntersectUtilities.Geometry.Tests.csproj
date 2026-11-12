@@ -22,7 +22,7 @@
     <Compile Include="..\IntersectUtilities\LongitudinalProfiles\Quality\ProfileQaGeometry.cs" Link="ProfileQaGeometry.cs" />
     <Compile Include="..\IntersectUtilities\LongitudinalProfiles\Quality\ProfileQaLevels.cs" Link="ProfileQaLevels.cs" />
     <Compile Include="..\IntersectUtilities\LongitudinalProfiles\Quality\ProfileQaRadii.cs" Link="ProfileQaRadii.cs" />
-    <Compile Include="..\AecPropertySetsSHARED\Unions.cs" Link="AecPropertySets\Unions.cs" />
+    <Compile Include="..\IntersectUtilities\LongitudinalProfiles\ProfileResults.cs" Link="ProfileResults.cs" />
     <Using Include="Xunit" />
   </ItemGroup>
 </Project>

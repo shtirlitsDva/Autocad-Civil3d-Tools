@@ -1,5 +1,5 @@
 using IntersectUtilities.LongitudinalProfiles.Baseline;
-using Norsyn.AecPropertySets;
+using IntersectUtilities.LongitudinalProfiles;
 using Xunit;
 
 public sealed class ProfileBaselineGeometryTests

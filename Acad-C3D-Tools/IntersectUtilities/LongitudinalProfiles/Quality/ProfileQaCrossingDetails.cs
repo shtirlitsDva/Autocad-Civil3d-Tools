@@ -1,7 +1,7 @@
 using Autodesk.AutoCAD.DatabaseServices;
 using IntersectUtilities.UtilsCommon.DataManager;
 using IntersectUtilities.UtilsCommon.DataManager.CsvData;
-using Norsyn.AecPropertySets;
+using IntersectUtilities.LongitudinalProfiles;
 using System;
 using System.Collections.Generic;
 using System.Globalization;

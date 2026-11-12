@@ -1,5 +1,5 @@
 using IntersectUtilities.LongitudinalProfiles.Quality;
-using Norsyn.AecPropertySets;
+using IntersectUtilities.LongitudinalProfiles;
 
 public sealed class ProfileQaGeometryTests
 {

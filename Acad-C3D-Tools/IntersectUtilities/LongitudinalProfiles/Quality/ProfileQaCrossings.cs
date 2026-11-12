@@ -2,13 +2,13 @@ using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
 using Autodesk.AutoCAD.Geometry;
 using Autodesk.Civil.DatabaseServices;
-using Norsyn.AecPropertySets;
+using IntersectUtilities.LongitudinalProfiles;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
-using Unit = Norsyn.AecPropertySets.Unit;
+using Unit = IntersectUtilities.LongitudinalProfiles.Unit;
 
 namespace IntersectUtilities.LongitudinalProfiles.Quality;
 

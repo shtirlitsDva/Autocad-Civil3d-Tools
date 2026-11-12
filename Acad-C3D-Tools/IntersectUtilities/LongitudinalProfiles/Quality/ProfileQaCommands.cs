@@ -8,14 +8,14 @@ using IntersectUtilities.PipelineNetworkSystem;
 using IntersectUtilities.PipelineNetworkSystem.PipelineSizeArray;
 using IntersectUtilities.UtilsCommon;
 using IntersectUtilities.UtilsCommon.DataManager;
-using Norsyn.AecPropertySets;
+using IntersectUtilities.LongitudinalProfiles;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using Application = Autodesk.AutoCAD.ApplicationServices.Core.Application;
 using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
-using Unit = Norsyn.AecPropertySets.Unit;
+using Unit = IntersectUtilities.LongitudinalProfiles.Unit;
 using static IntersectUtilities.UtilsCommon.Utils;
 
 namespace IntersectUtilities
