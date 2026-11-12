@@ -16,14 +16,27 @@ namespace IntersectUtilities
     public partial class Intersect
     {
         /// <command>PROFILEBASELINE</command>
-        /// <summary>Replaces a guide with desired/minimum-radius crest/sag geometry at or below it; failed sections may be left as gaps.</summary>
+        /// <summary>
+        /// Replaces a prepared guide with editable straight segments and tangent crest/sag arcs at or below it.
+        /// Uses the desired radius, with an optional minimum-radius retry at failed corners; unresolved sections
+        /// can be left as gaps.
+        /// </summary>
         /// <category>Longitudinal Profiles</category>
+        /// <execution>
+        /// Use an open, straight-segment guide in metres with equal horizontal and vertical scale. Either drawing direction is accepted; vertical or backtracking segments are not. The guide must already include the desired cover allowance.
+        /// Run PROFILEBASELINE, select the guide to replace and enter the desired radius. A complete result replaces the guide immediately.
+        /// If construction fails, choose Minimum to enter a fallback radius, Anyway to create valid portions with open gaps, or Abort to preserve the guide. Use PROFILEGUIDE first to retain an original copy.
+        /// </execution>
         [CommandMethod("PROFILEBASELINE", CommandFlags.Modal)]
         public void ProfileBaseline() => LongitudinalProfiles.Baseline.ProfileBaselineCommand.Run();
-
         /// <command>PROFILEGUIDE</command>
-        /// <summary>Copies a polyline in place to 0-Hjælpelinje for manual preparation before PROFILEBASELINE consumes it.</summary>
+        /// <summary>
+        /// Copies a polyline in place to 0-Hjælpelinje for manual preparation before PROFILEBASELINE consumes it.
+        /// </summary>
         /// <category>Longitudinal Profiles</category>
+        /// <execution>
+        /// Run PROFILEGUIDE and select the source polyline. Edit the new copy on 0-Hjælpelinje, then use PROFILEBASELINE if required. The original is preserved.
+        /// </execution>
         [CommandMethod("PROFILEGUIDE", CommandFlags.Modal)]
         public void ProfileGuide() => LongitudinalProfiles.Baseline.ProfileBaselineCommand.CopyGuide();
     }

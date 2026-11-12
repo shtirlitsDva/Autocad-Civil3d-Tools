@@ -14,6 +14,9 @@ public partial class Intersect
     /// Tilpasser Buerør-blokkens dynamiske R-værdi til en valgt bue eller et polyline-buesegment.
     /// </summary>
     /// <category>Utilities</category>
+    /// <execution>
+    /// Run BUERORRADIUS, select a dynamic Buerør block with an editable R parameter, then select an ARC or the required curved segment of a 2D polyline. The block R value is set to the selected arc radius.
+    /// </execution>
     [CommandMethod("BUERORRADIUS", CommandFlags.Modal)]
     public void BuerorRadius()
     {

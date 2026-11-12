@@ -10,18 +10,25 @@ public partial class Intersect
 {
     /// <command>LERHATCHLAYERS</command>
     /// <summary>
-    /// Assigns model-space LER component hatches on layer 0 to existing LER polyline layers
-    /// using component property sets, operating status and electrical voltage. Sets their
-    /// colour to ByLayer and reports missing or ambiguous mappings without changing them.
-    /// Electrical components with missing or unknown voltage use EL-Elledning-Ukendt.
+    /// Assigns model-space LER component hatches on layer 0 to existing LER polyline layers using component
+    /// property sets, operating status and electrical voltage. Sets their colour to ByLayer and reports missing or
+    /// ambiguous mappings without changing them. Electrical components with missing or unknown voltage use EL-
+    /// Elledning-Ukendt.
     /// </summary>
     /// <category>LER</category>
+    /// <execution>
+    /// Run LERHATCHLAYERSPREVIEW first to review assignments for model-space component hatches on layer 0. Run LERHATCHLAYERS to apply them. Relevant LER property sets and destination layers must exist. Missing or ambiguous mappings are reported and skipped.
+    /// </execution>
     [CommandMethod("LERHATCHLAYERS", CommandFlags.Modal)]
     public void LerHatchLayers() => RunLerHatchLayers(preview: false);
-
     /// <command>LERHATCHLAYERSPREVIEW</command>
-    /// <summary>Reports the LERHATCHLAYERS assignments and skipped hatch handles without editing the drawing.</summary>
+    /// <summary>
+    /// Reports the LERHATCHLAYERS assignments and skipped hatch handles without editing the drawing.
+    /// </summary>
     /// <category>LER</category>
+    /// <execution>
+    /// Run LERHATCHLAYERSPREVIEW in the LER drawing and inspect the planned layer counts and skipped handles in F2. The drawing is not changed. Use LERHATCHLAYERS to apply the assignments.
+    /// </execution>
     [CommandMethod("LERHATCHLAYERSPREVIEW", CommandFlags.Modal)]
     public void LerHatchLayersPreview() => RunLerHatchLayers(preview: true);
 

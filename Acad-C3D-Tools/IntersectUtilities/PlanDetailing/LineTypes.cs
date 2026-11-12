@@ -16,13 +16,15 @@ namespace IntersectUtilities
     {
         /// <command>CCL</command>
         /// <summary>
-        /// Opens the complex linetype editor, a window that stays open beside the drawing:
-        /// pick a linetype of the drawing (or the one of a selected object), edit its dashes,
-        /// texts and shapes with a live preview, generate the text linetypes CCLS, CCLX and
-        /// CCLXS made, make a pattern readable both ways, read and write .lin text, and write
-        /// the linetype into the drawing (changed in place, so whatever uses it keeps it).
+        /// Opens the complex linetype editor, a window that stays open beside the drawing: pick a linetype of the
+        /// drawing (or the one of a selected object), edit its dashes, texts and shapes with a live preview,
+        /// generate the text linetypes CCLS, CCLX and CCLXS made, make a pattern readable both ways, read and write
+        /// .lin text, and write the linetype into the drawing (changed in place, so whatever uses it keeps it).
         /// </summary>
         /// <category>LineTypes</category>
+        /// <execution>
+        /// Run CCL to open the modeless complex-linetype editor. Select a drawing linetype or an object using it, adjust dash/text/shape elements in the preview, then write the result to the drawing. The editor also supports generating text linetypes and importing/exporting .lin definitions.
+        /// </execution>
         [CommandMethod("CCL")]
         public void createcomplexlinetype() => LinetypeEditorWindowHost.Show();
 

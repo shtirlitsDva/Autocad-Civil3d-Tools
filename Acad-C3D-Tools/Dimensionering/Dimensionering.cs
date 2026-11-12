@@ -1905,7 +1905,14 @@ namespace IntersectUtilities.Dimensionering
             prdDbg("Finished!");
             prdDbg("ADVARSEL: ER IKKE TESTET SAMMEN MED DIMCONNECTHUSNR!!!!!!!!!");
         }
-
+        /// <command>DIMFINDERASEDCHILDREN</command>
+        /// <summary>
+        /// Removes unresolved child handles from BBR dimensioning-graph metadata.
+        /// </summary>
+        /// <category>Dimensionering</category>
+        /// <execution>
+        /// Run DIMFINDERASEDCHILDREN in the dimensioning drawing. BBR graph child handles that no longer resolve to drawing entities are removed from the stored Children lists. Drawing geometry is not erased.
+        /// </execution>
         [CommandMethod("DIMFINDERASEDCHILDREN")]
         public void dimfinderasedchildren()
         {

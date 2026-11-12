@@ -23,32 +23,54 @@ namespace IntersectUtilities
     public partial class Intersect
     {
         /// <command>CHECKPROFILERADII</command>
-        /// <summary>Checks vertical casing-centreline radii in one profile view using the verified Norsyn tables.</summary>
+        /// <summary>
+        /// Checks vertical casing-centreline radii in one profile view using the verified Norsyn tables.
+        /// </summary>
         /// <category>Longitudinal Profiles</category>
+        /// <execution>
+        /// Run CHECKPROFILERADII and select the casing-centreline polyline or Civil 3D profile. Auto selects its profile view from the pick location; use Manual to select the view separately. Results are shown in the command history (F2). Provide the project FJV-fremtid pipe-data references when requested. Review stations with failed, review or unverified radius results. Steel acceptance thresholds use whole metres; original table limits remain displayed.
+        /// </execution>
         [CommandMethod("CHECKPROFILERADII", CommandFlags.Modal)]
         public void CheckProfileRadii() => LongitudinalProfiles.Quality.ProfileQaCommands.Run(LongitudinalProfiles.Quality.QaCheck.Radii);
-
         /// <command>CHECKPROFILEOVERLAP</command>
-        /// <summary>Lists overlapping FJV horizontal arcs and vertical curves in one profile view.</summary>
+        /// <summary>
+        /// Lists overlapping FJV horizontal arcs and vertical curves in one profile view.
+        /// </summary>
         /// <category>Longitudinal Profiles</category>
+        /// <execution>
+        /// Run CHECKPROFILEOVERLAP and select the casing-centreline polyline or Civil 3D profile. Auto selects its profile view from the pick location; use Manual to select the view separately. Results are shown in the command history (F2). Use the project FJV-fremtid plan geometry and pipe data. Review each overlapping station range, its horizontal/vertical radii and pipe details; combined bending acceptance is assessed by the designer.
+        /// </execution>
         [CommandMethod("CHECKPROFILEOVERLAP", CommandFlags.Modal)]
         public void CheckProfileOverlap() => LongitudinalProfiles.Quality.ProfileQaCommands.Run(LongitudinalProfiles.Quality.QaCheck.Overlap);
-
         /// <command>CHECKPROFILECROSSINGS</command>
-        /// <summary>Lists intrusions into the drawn outer crossing envelopes in one selected detailing block.</summary>
+        /// <summary>
+        /// Lists intrusions into the drawn outer crossing envelopes in one selected detailing block.
+        /// </summary>
         /// <category>Longitudinal Profiles</category>
+        /// <execution>
+        /// Run CHECKPROFILECROSSINGS and select the casing-centreline polyline or Civil 3D profile. Auto selects its profile view from the pick location; use Manual to select the view separately. Results are shown in the command history (F2). The matching detailing block is selected automatically when unique; otherwise select the matching block. Review clearance-envelope conflicts and unknown-depth crossings. Tangency is accepted. Out-of-service utilities are excluded; unknown-depth tele/KOM, 0.4 kV and street lighting are excluded. The report includes utility and district-heating casing-top depths below terrain.
+        /// </execution>
         [CommandMethod("CHECKPROFILECROSSINGS", CommandFlags.Modal)]
         public void CheckProfileCrossings() => LongitudinalProfiles.Quality.ProfileQaCommands.Run(LongitudinalProfiles.Quality.QaCheck.Crossings);
-
         /// <command>CHECKPROFILETANGENCY</command>
-        /// <summary>Lists non-tangent casing-centreline connections by station in one profile view.</summary>
+        /// <summary>
+        /// Lists non-tangent casing-centreline connections by station in one profile view.
+        /// </summary>
         /// <category>Longitudinal Profiles</category>
+        /// <execution>
+        /// Run CHECKPROFILETANGENCY and select the casing-centreline polyline or Civil 3D profile. Auto selects its profile view from the pick location; use Manual to select the view separately. Results are shown in the command history (F2). Review the listed non-tangent joins and station/elevation gaps. Station labels use one decimal; the numerical tangency check retains its calculation tolerance.
+        /// </execution>
         [CommandMethod("CHECKPROFILETANGENCY", CommandFlags.Modal)]
         public void CheckProfileTangency() => LongitudinalProfiles.Quality.ProfileQaCommands.Run(LongitudinalProfiles.Quality.QaCheck.Tangency);
-
         /// <command>CHECKPROFILECOVER</command>
-        /// <summary>Checks vertical soil cover over the casing for one profile view or selected interval.</summary>
+        /// <summary>
+        /// Checks vertical soil cover over the casing for one profile view or selected interval.
+        /// </summary>
         /// <category>Longitudinal Profiles</category>
+        /// <execution>
+        /// Run CHECKPROFILECOVER and select the casing-centreline polyline or Civil 3D profile. Auto selects its profile view from the pick location; use Manual to select the view separately. Results are shown in the command history (F2). Provide terrain and pipe data. Enter minimum vertical cover (initially 0.60 m; the last valid value is remembered), then choose Whole or Partial. For Partial, pick the start and end.
+        /// Every5m is the default and checks 5 m station multiples plus the selected endpoints. Choose Continuous to check between reporting stations. The worst checked cover is printed first. Include any intended tolerance in the entered cover limit.
+        /// </execution>
         [CommandMethod("CHECKPROFILECOVER", CommandFlags.Modal)]
         public void CheckProfileCover() => LongitudinalProfiles.Quality.ProfileQaCommands.Run(LongitudinalProfiles.Quality.QaCheck.Cover);
     }

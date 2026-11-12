@@ -833,14 +833,15 @@ namespace IntersectUtilities
 
             prdDbg($"Placed {count} PertTees!");
         }
-
-        /// <command>CORRECTCUSTOMTRANSITIONS</command>
+        /// <command>CORRECTCUSTOMTRANSISIONS</command>
         /// <summary>
-        /// If a transition found to have type "CUSTOM",
-        /// attempts to find the correct type by reading the sizes
-        /// of adjacent polylines.
+        /// If a transition found to have type "CUSTOM", attempts to find the correct type by reading the sizes of
+        /// adjacent polylines.
         /// </summary>
         /// <category>Blocks</category>
+        /// <execution>
+        /// Run CORRECTCUSTOMTRANSISIONS in the FJV component drawing. The command inspects CUSTOM transitions and adjacent pipe dimensions to determine a suitable component type. The registered command intentionally retains the existing spelling TRANSISIONS.
+        /// </execution>
         [CommandMethod("CORRECTCUSTOMTRANSISIONS")]
         public void correcttransitionsizes()
         {

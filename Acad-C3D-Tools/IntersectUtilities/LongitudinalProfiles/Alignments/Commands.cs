@@ -17,6 +17,12 @@ namespace IntersectUtilities
 {
     public partial class Intersect
     {
+        /// <command>CREATEALIGNMENTS, CALS</command>
+        /// <summary>
+        /// Unfinished alignment-creation prototype; the choice loop has no implemented creation operation.
+        /// </summary>
+        /// <category>Development</category>
+        /// <documentation status="development" />
         [CommandMethod("CREATEALIGNMENTS")]
         [CommandMethod("CALS")]
         public void createalignments()

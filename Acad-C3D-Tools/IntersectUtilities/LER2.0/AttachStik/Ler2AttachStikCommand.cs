@@ -17,15 +17,18 @@ namespace IntersectUtilities
     {
         private static double attachStikSlope = 20.0;
         private static double attachStikMaximumDistance = 1.0;
-
         /// <command>LER2ATTACHSTIK</command>
         /// <summary>
-        /// Extends or trims selected branch endpoints along their terminal XY segments onto unselected 3D polyline edges,
-        /// interpolates the connection elevation and applies a signed per-mille slope.
-        /// With two unknown endpoints, uses the connection requiring the least endpoint movement. Positive
-        /// slope rises away from the main. Both prompts remember their session values.
+        /// Extends or trims selected branch endpoints along their terminal XY segments onto unselected 3D polyline
+        /// edges, interpolates the connection elevation and applies a signed per-mille slope. With two unknown
+        /// endpoints, uses the connection requiring the least endpoint movement. Positive slope rises away from the
+        /// main. Both prompts remember their session values.
         /// </summary>
         /// <category>LER2</category>
+        /// <execution>
+        /// Select only the branch 3D polylines, then run LER2ATTACHSTIK. Enter the signed slope in per-mille (default 20) and maximum endpoint movement in drawing units (default 1; 1 m in a metre drawing).
+        /// The terminal XY segment is extended or trimmed to a valid unselected 3D main segment. Positive slope rises away from the main. All branch elevations are recalculated and overwritten. Main candidates are considered across layers; review the intended connection. Both prompt values are remembered for the session.
+        /// </execution>
         [CommandMethod("LER2ATTACHSTIK", CommandFlags.Modal | CommandFlags.UsePickSet | CommandFlags.NoPaperSpace)]
         public void Ler2AttachStik()
         {

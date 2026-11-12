@@ -722,7 +722,14 @@ namespace IntersectUtilities
                 }
             }
         }
-
+        /// <command>NORFJVPLINE</command>
+        /// <summary>
+        /// Draws or continues an FJV polyline interactively, with an option to attach at an existing polyline.
+        /// </summary>
+        /// <category>Polylines</category>
+        /// <execution>
+        /// Run NORFJVPLINE and choose New, Continue or Attach. Continue requires an existing polyline; Attach starts from a point on a polyline. Place points with the live jig and use its offered straight/arc controls. Finish the interactive jig to commit the resulting polyline.
+        /// </execution>
         [CommandMethod("NORFJVPLINE")]
         public void drifjvpline()
         {

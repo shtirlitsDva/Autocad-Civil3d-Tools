@@ -41,6 +41,12 @@ namespace IntersectUtilities
     /// </summary>
     public class PolylineCurvingDev
     {
+        /// <command>CALCULATESLOPE</command>
+        /// <summary>
+        /// Polyline-curving development calculation; excluded from the public command list.
+        /// </summary>
+        /// <category>Development</category>
+        /// <documentation status="development" />
         [CommandMethod("CALCULATESLOPE")]
         public void calculateslope()
         {

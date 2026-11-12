@@ -29,15 +29,17 @@ public partial class Intersect
     // The tags of the last stretch, offered again on the next TBLCRAWL in this session.
     private static Maybe<string> s_tblLastBelægning = Maybe<string>.None;
     private static Maybe<string> s_tblLastVejklasse = Maybe<string>.None;
-
     /// <command>TBLINIT</command>
     /// <summary>
-    /// Prepares a drawing for TBL stretches: creates a layer per Belægning (0-TBL-STRÆK-VEJBANE and so on,
-    /// each with its own colour and lineweight 0.35) and the DriOmråder property set definition when they
-    /// are missing, and checks that an FJV Fremtid xref is attached. Running it again changes nothing; a
-    /// layer that exists keeps the colour and lineweight it has.
+    /// Prepares a drawing for TBL stretches: creates a layer per Belægning (0-TBL-STRÆK-VEJBANE and so on, each
+    /// with its own colour and lineweight 0.35) and the DriOmråder property set definition when they are missing,
+    /// and checks that an FJV Fremtid xref is attached. Running it again changes nothing; a layer that exists keeps
+    /// the colour and lineweight it has.
     /// </summary>
     /// <category>Tilbudsliste</category>
+    /// <execution>
+    /// Run TBLINIT in the drawing used for tender stretches, with an FJV Fremtid xref attached. Missing surfacing layers and the DriOmråder property-set definition are created. Existing layer styling is retained. Then use TBLCRAWL.
+    /// </execution>
     [CommandMethod("TBLINIT")]
     public void TblInit()
     {
@@ -56,16 +58,18 @@ public partial class Intersect
             HandleCommandException(document, "TBLINIT", exception);
         }
     }
-
     /// <command>TBLCRAWL</command>
     /// <summary>
-    /// Draws a TBL stretch: asks for Belægning and Vejklasse (the last ones are offered again), then a start
-    /// and an end on the FJV network of the Fremtid xref, as NSALIGNMENTCRAWL takes them. The path is drawn
-    /// on the Belægning's layer (made by TBLINIT) with its tags in DriOmråder. Where the path runs on frem or
-    /// retur, the partner pipe is crawled too and drawn as its own stretch with the same tags and layer.
-    /// Older stretches on any TBL layer are cut where a new one lies on them, so no two stretches share pipe.
+    /// Draws a TBL stretch: asks for Belægning and Vejklasse (the last ones are offered again), then a start and an
+    /// end on the FJV network of the Fremtid xref, as NSALIGNMENTCRAWL takes them. The path is drawn on the
+    /// Belægning's layer (made by TBLINIT) with its tags in DriOmråder. Where the path runs on frem or retur, the
+    /// partner pipe is crawled too and drawn as its own stretch with the same tags and layer. Older stretches on
+    /// any TBL layer are cut where a new one lies on them, so no two stretches share pipe.
     /// </summary>
     /// <category>Tilbudsliste</category>
+    /// <execution>
+    /// Run TBLINIT first. Run TBLCRAWL, choose Belægning and Vejklasse, then pick the start and end on the FJV network in the Fremtid xref using the route preview. The last classification values are offered again. Paired single pipes are drawn as separate stretches; overlapping older TBL stretches are cut back.
+    /// </execution>
     [CommandMethod("TBLCRAWL")]
     public void TblCrawl()
     {

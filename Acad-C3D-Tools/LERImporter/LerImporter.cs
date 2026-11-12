@@ -54,18 +54,17 @@ namespace LERImporter
         #endregion
 
         public static readonly string ImplementedVersion = "2.0.0";
-
         /// <command>IGMLBATCH, IMPORTCONSOLIDATEDGMLBATCH</command>
         /// <summary>
-        /// Batch-imports consolidated LER GML files from a chosen top folder. Unzips any archives
-        /// in-place, finds all "consolidated.gml" files recursively, enhances each with Enhance.Run,
-        /// and for each file creates a 3D LER DWG "{Bemærkning}_3DLER.dwg" using the template at
-        /// X:\AutoCAD DRI - SETUP\Templates\NS_LerTemplate.dwt. Also builds a combined
-        /// Schema.FeatureCollection across all files and creates a single 2D LER DWG "2DLER.dwg"
-        /// in the top folder. Progress is logged to LerImport.log in the top folder. Intended to convert
-        /// all partial LER2 requests into standardized DWGs in one run.
+        /// Batch-imports consolidated LER GML deliveries from a chosen top folder, extracting archives and creating
+        /// individual 3D LER DWGs plus one combined 2DLER drawing. Automatically assigns component-hatch layers by
+        /// property sets, status and voltage. Progress and unresolved mappings are written to LerImport.log.
         /// </summary>
         /// <category>LER2</category>
+        /// <execution>
+        /// Run IGMLBATCH and choose the top folder containing the LER delivery archives or consolidated.gml files. Import creates the individual 3D LER drawings, a combined 2DLER drawing and LerImport.log.
+        /// Component hatches are assigned to LER layers using property sets, operating status and electrical voltage. Missing or ambiguous mappings are logged. The configured LER template and an updated LERImporter build are required.
+        /// </execution>
         [CommandMethod("IGMLBATCH")]
         [CommandMethod("IMPORTCONSOLIDATEDGMLBATCH")]
         public void importconsolidatedbatch()

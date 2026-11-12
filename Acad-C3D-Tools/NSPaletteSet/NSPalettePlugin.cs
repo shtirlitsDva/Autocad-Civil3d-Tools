@@ -23,7 +23,14 @@ namespace NSPaletteSet
                 _palette = null;
             }
         }
-
+        /// <command>NSPALETTE</command>
+        /// <summary>
+        /// Opens the NSPalette window.
+        /// </summary>
+        /// <category>Palettes</category>
+        /// <execution>
+        /// Run NSPALETTE after loading the NSPalette library. The palette is created on first use and brought into view on subsequent runs.
+        /// </execution>
         [CommandMethod("NSPALETTE")]
         public static void ShowPalette()
         {

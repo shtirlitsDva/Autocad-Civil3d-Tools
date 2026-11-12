@@ -55,7 +55,16 @@ namespace IntersectUtilities
             _propertySetBrowserWindow.Closed += (s, e) => _propertySetBrowserWindow = null;
             _propertySetBrowserWindow.Show();
         }
-
+        /// <command>DSIMPORTPTSWITHPS</command>
+        /// <summary>
+        /// Imports CSV rows as DBPoints with attached property sets, converting WGS84 coordinates to UTM32N or
+        /// resolving missing coordinates from existing BBR addresses.
+        /// </summary>
+        /// <category>Data Science</category>
+        /// <execution>
+        /// Run DSIMPORTPTSWITHPS, choose the CSV and select its X and Y coordinate columns. X is WGS84 longitude and Y is latitude; coordinates are converted to UTM32N. Rows without coordinates are matched to existing BBR addresses using Adresse, Husnr and Litraer.
+        /// Imported points receive a property set named after the CSV table, with the row data. An unmatched address cancels the import transaction.
+        /// </execution>
         [CommandMethod("DSIMPORTPTSWITHPS")]
         public void dsimportptwithps()
         {
@@ -209,7 +218,16 @@ namespace IntersectUtilities
 
             tx.Commit();
         }
-
+        /// <command>DSMERGEDATA</command>
+        /// <summary>
+        /// Matches consumer and geocoding CSV records by identifiers and address fields, writes a merged CSV and an
+        /// HTML report of matches and unresolved records.
+        /// </summary>
+        /// <category>Data Science</category>
+        /// <execution>
+        /// Run DSMERGEDATA and choose the LEFT consumer CSV, then the RIGHT geocoding CSV. LEFT requires Ejendomsnr, Adresse, Husnr and Litraer. RIGHT requires Forbrugernr, Vejnavn, Husnr, Breddegrad and Længdegrad.
+        /// Review unmatched and ambiguous results in the generated DSMERGE_report.html. The merged CSV is written beside the LEFT input as &lt;left-name&gt;_merged.csv.
+        /// </execution>
         [CommandMethod("DSMERGEDATA")]
         public void dsmergedata()
         {
@@ -1098,7 +1116,14 @@ namespace IntersectUtilities
 
         private readonly record struct MergeKey(string Id, string Address, string HouseNumber);
         #endregion
-
+        /// <command>DSAPPLYAFKOLING</command>
+        /// <summary>
+        /// Assigns summed energy and energy-weighted cooling from nearby consumer DBPoints to BBR blocks.
+        /// </summary>
+        /// <category>Data Science</category>
+        /// <execution>
+        /// Run DSAPPLYAFKOLING in the BBR/consumer-data drawing. Points within 3 drawing units of each BBR location must contain forbrugerdata.EnergiiMWH and forbrugerdata.Afkøling, with positive total energy. The command overwrites BBR estimated consumption and cooling temperature with the energy sum and energy-weighted cooling.
+        /// </execution>
         [CommandMethod("DSAPPLYAFKOLING")]
         public void dsapplyafkoling()
         {
@@ -1153,7 +1178,14 @@ namespace IntersectUtilities
 
             tx.Commit();
         }
-
+        /// <command>DSCOPYAFKOLING</command>
+        /// <summary>
+        /// Copies the legacy BBR TempDelta value into TempDeltaVarme.
+        /// </summary>
+        /// <category>Data Science</category>
+        /// <execution>
+        /// Run DSCOPYAFKOLING in a drawing containing BBR blocks with the BBR.TempDelta source field. It copies that field into TempDeltaVarme for all matching BBR blocks.
+        /// </execution>
         [CommandMethod("DSCOPYAFKOLING")]
         public void dscopyafkoling()
         {
@@ -1187,7 +1219,15 @@ namespace IntersectUtilities
 
             tx.Commit();
         }
-
+        /// <command>DSFORDELFORBRUG</command>
+        /// <summary>
+        /// Distributes a consumer point's energy demand among selected BBR blocks in proportion to their
+        /// residential floor area.
+        /// </summary>
+        /// <category>Data Science</category>
+        /// <execution>
+        /// Run DSFORDELFORBRUG, select the destination BBR blocks and then a DBPoint containing Forbrugsoverblik 2024_merged.EnergiMWh. Demand is distributed by SamletBoligareal and overwrites EstimeretVarmeForbrug. The selected blocks must have positive total residential floor area.
+        /// </execution>
         [CommandMethod("DSFORDELFORBRUG")]
         public void dsfordelforbrug()
         {
@@ -1282,7 +1322,15 @@ namespace IntersectUtilities
 
             tx.Commit();
         }
-
+        /// <command>DSCLONEBBRFROMPOINT</command>
+        /// <summary>
+        /// Creates BBR block copies at consumer DBPoints using a selected template and the points' address and
+        /// energy data.
+        /// </summary>
+        /// <category>Data Science</category>
+        /// <execution>
+        /// Run DSCLONEBBRFROMPOINT, choose an existing BBR block as a template, then pick DBPoints containing Adresse, Husnr and EnergiMWh in Forbrugsoverblik 2024_merged. New blocks are placed at the points, copying template settings and using point address/energy data. Space ends the point loop; choose another template or exit.
+        /// </execution>
         [CommandMethod("DSCLONEBBRFROMPOINT")]
         public void dsclonebbrfrompoint()
         {
@@ -1422,7 +1470,15 @@ namespace IntersectUtilities
 
             tx.Commit();
         }
-
+        /// <command>DSSUMENERGITOBR</command>
+        /// <summary>
+        /// Sums nearby consumer-point energy into BBR blocks and writes an HTML report of updated blocks and
+        /// unmatched data.
+        /// </summary>
+        /// <category>Data Science</category>
+        /// <execution>
+        /// Run DSSUMENERGITOBR in a drawing containing BBR blocks and DBPoints with Forbrugsoverblik 2024_merged.EnergiMWh. For each block, energy is summed from points within 1 drawing unit and overwrites estimated consumption. Review DSSUMENERGY_report.html beside the DWG (Desktop for an unsaved drawing).
+        /// </execution>
         [CommandMethod("DSSUMENERGITOBR")]
         public void dssumenergitobr()
         {

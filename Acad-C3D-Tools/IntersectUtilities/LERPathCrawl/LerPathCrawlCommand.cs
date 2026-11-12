@@ -16,12 +16,14 @@ public partial class Intersect
 {
     /// <command>LERCRAWL</command>
     /// <summary>
-    /// Select a start on a LER polyline in an xref, then an endpoint with a live shortest-route
-    /// preview. Follows only the exact selected utility layer in that xref instance.
-    /// Both point prompts support running object snaps and temporary snap overrides.
-    /// Creates one zero-width plan centreline in host model space on 0-REFERENCELINE.
+    /// Select a start on a LER polyline in an xref, then an endpoint with a live shortest-route preview. Follows
+    /// only the exact selected utility layer in that xref instance. Both point prompts support running object snaps
+    /// and temporary snap overrides. Creates one zero-width plan centreline in host model space on 0-REFERENCELINE.
     /// </summary>
     /// <category>LER</category>
+    /// <execution>
+    /// Run LERCRAWL and pick a start on a 2D LER polyline inside a loaded LER xref. Follow the live route preview and pick the endpoint. The initial pick fixes the xref instance and exact utility layer. A zero-width centreline is created on 0-REFERENCELINE in host model space; object snaps are supported.
+    /// </execution>
     [CommandMethod("LERCRAWL", CommandFlags.Modal | CommandFlags.NoPaperSpace | CommandFlags.UsePickSet)]
     public void LerPathCrawl()
     {

@@ -14,7 +14,14 @@ namespace IntersectUtilities
 {
     public partial class Intersect
     {
-        /// <summary>Replaces the label groups of displayed MIDT profiles with one chosen label set.</summary>
+        /// <command>SETMIDTLABELSET</command>
+        /// <summary>
+        /// Replaces the label groups of displayed MIDT profiles with one chosen label set.
+        /// </summary>
+        /// <category>Longitudinal Profiles</category>
+        /// <execution>
+        /// Run SETMIDTLABELSET in the longitudinal-profile drawing. Select a profile label set by its number in the displayed list. Existing label groups on all displayed MIDT profile/view pairs are replaced. An empty set such as _No Labels removes the groups; profile geometry is preserved.
+        /// </execution>
         [CommandMethod("SETMIDTLABELSET", CommandFlags.Modal)]
         public void SetMidtLabelSet() => LongitudinalProfiles.SetMidtLabelSetCommand.Run();
     }
