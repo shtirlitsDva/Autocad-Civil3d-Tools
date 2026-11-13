@@ -18,8 +18,15 @@ public partial class Intersect
     /// <summary>
     /// Places a component block in the FV_Fremtid plan drawing from a click in a længdeprofil: the station is
     /// resolved from the picked point and a component is chosen from FJV Dynamiske Komponenter.csv. Answer Multiple
-    /// to pick all locations first and place the same block at each. The block is inserted loose on layer
-    /// 0-KOMPONENT - the run polyline is not cut and no welds are generated.
+    /// to pick all locations first and place the same block at each. The block is inserted on layer 0-KOMPONENT,
+    /// and the FJV pipe of its alignment is cut at the block's ports (its MuffeIntern blocks lying at most 0.05 m
+    /// from the pipe): the stretch between the two outermost ports is deleted, and across a joint each polyline is
+    /// trimmed back to its own port. The pieces keep the pipe's layer, colour, linetype, width and property sets;
+    /// FJV_fremtid Length becomes each piece's own length, and DriGraph ConnectedEntities links the pieces' cut ends
+    /// to the block and moves the pipe's other links to the piece that holds them. With fewer than two ports on the
+    /// pipe (end cap, plan bend, bonded pipes, no pipe at the station) the pipe is left alone and the placement's
+    /// report line ends with "rør ikke trimmet:" and the reason. In Multiple mode each placement trims the pipe as
+    /// the previous one left it. No welds are generated.
     /// </summary>
     /// <category>MPE</category>
     [CommandMethod("PLACELONGITUDINALBLOCK", CommandFlags.Modal)]
