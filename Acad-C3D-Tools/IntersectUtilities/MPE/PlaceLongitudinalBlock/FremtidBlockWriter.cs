@@ -5,8 +5,6 @@ using Autodesk.AutoCAD.DatabaseServices;
 
 using Autodesk.Civil.DatabaseServices;
 
-using CSharpFunctionalExtensions;
-
 using IntersectUtilities.PipelineNetworkSystem;
 using IntersectUtilities.PipelineNetworkSystem.PipelineSizeArray;
 using IntersectUtilities.UtilsCommon;
@@ -33,12 +31,9 @@ internal static class FremtidBlockWriter
     internal const string SymbolerPath = @"X:\AutoCAD DRI - 01 Civil 3D\DynBlokke\Symboler.dwg";
     internal const string ComponentLayerName = "0-KOMPONENT";
 
-    // The name UNDO shows in FV_Fremtid for a run written into the open document.
-    private const string UndoGroupName = "PLACELONGITUDINALBLOCK";
-
     /// <summary>
     /// Imports the block definition if needed, inserts a reference at the plan point, sizes it from
-    /// the pipe it lands on, stamps BelongsToAlignment, and cuts that pipe at the block's ports.
+    /// the pipe it lands on, and stamps BelongsToAlignment.
     /// </summary>
     /// <param name="localDb">
     /// The active længdeprofil drawing — it owns the Alignment the size array is built against.
@@ -81,9 +76,8 @@ internal static class FremtidBlockWriter
     }
 
     /// <summary>
-    /// Edits FV_Fremtid in place while it is open in this session, as one named undo step there: one
-    /// UNDO in FV_Fremtid removes the whole run. The drawing is left dirty on purpose — saving another
-    /// document from under the user is worse than telling them to save.
+    /// Edits FV_Fremtid in place while it is open in this session. The drawing is left dirty on
+    /// purpose — saving another document from under the user is worse than telling them to save.
     /// </summary>
     private static bool PlaceInOpenDocument(
         Document document,
@@ -97,10 +91,7 @@ internal static class FremtidBlockWriter
         try
         {
             // Required because we are writing to a document other than the one running the command.
-            // The command name makes AutoCAD file everything done under the lock as one named undo
-            // group in that document; the parameterless lock filed none there, so UNDO could not reach it.
-            using DocumentLock documentLock = document.LockDocument(
-                DocumentLockMode.Write, UndoGroupName, UndoGroupName, true);
+            using DocumentLock documentLock = document.LockDocument();
 
             PropertySetManager.UpdatePropertySetDefinition(db, PSetDefs.DefinedSets.DriPipelineData);
 
@@ -306,8 +297,7 @@ internal static class FremtidBlockWriter
     /// <summary>
     /// Writes every placement in one transaction. The pipeline size array is cached per alignment:
     /// building it walks all FJV entities on that alignment, so re-deriving it for each click would
-    /// be pure waste when placing several components along the same pipe. The graph links are read
-    /// once per run too, and each placement trims the pipe as the previous one left it.
+    /// be pure waste when placing several components along the same pipe.
     /// </summary>
     private static List<string> WriteAll(
         Database db,
@@ -317,30 +307,30 @@ internal static class FremtidBlockWriter
         string blockName)
     {
         Dictionary<string, IPipelineSizeArrayV2?> sizeArrays = [];
-        GraphLinks graph = new(db, tx);
         List<string> reports = [];
 
         foreach (LongitudinalBlockPick pick in picks)
         {
-            reports.Add(WriteBlock(db, tx, localDb, pick, blockName, sizeArrays, graph));
+            WriteBlock(db, tx, localDb, pick, blockName, sizeArrays, out string handle, out string sizeNote);
+            reports.Add($"  st. {pick.Station:0.###} på {pick.AlignmentName} (handle {handle}) — {sizeNote}");
         }
 
         return reports;
     }
 
     /// <summary>
-    /// The actual edit, identical whichever database it runs against: inserts and sizes the block,
-    /// stamps BelongsToAlignment, trims the pipe at the block's ports (<see cref="PipeTrimmer"/>) and
-    /// returns the placement's report line. Requires an open transaction on <paramref name="db"/>.
+    /// The actual edit, identical whichever database it runs against. Requires an open transaction
+    /// on <paramref name="db"/>.
     /// </summary>
-    private static string WriteBlock(
+    private static void WriteBlock(
         Database db,
         Transaction tx,
         Database localDb,
         LongitudinalBlockPick pick,
         string blockName,
         Dictionary<string, IPipelineSizeArrayV2?> sizeArrays,
-        GraphLinks graph)
+        out string handle,
+        out string sizeNote)
     {
         db.CheckOrCreateLayer(ComponentLayerName, 0);
 
@@ -358,21 +348,15 @@ internal static class FremtidBlockWriter
         BlockReference br = db.CreateBlockWithAttributes(blockName, pick.PlanPoint, pick.Rotation);
         br.Layer = ComponentLayerName;
 
-        ApplySizeAtStation(db, tx, localDb, br, pick, sizeArrays, out string sizeNote);
+        ApplySizeAtStation(db, tx, localDb, br, pick, sizeArrays, out sizeNote);
 
         PropertySetManager psmPipeline = new(db, PSetDefs.DefinedSets.DriPipelineData);
         PSetDefs.DriPipelineData pipelineDef = new();
         psmPipeline.WritePropertyString(br, pipelineDef.BelongsToAlignment, pick.AlignmentName);
 
-        // After sizing: a dynamic block's ports are where its final geometry puts them.
-        string trimNote = PipeTrimmer.Trim(db, tx, br, pick.AlignmentName, graph).Match(
-            trimmed => $"rør trimmet: {trimmed}",
-            error => $"rør ikke trimmet: {error.Message}");
-
-        // After the trim, or a new pipe piece would be drawn over the block.
         MoveToTop(db, tx, br.Id);
 
-        return $"  st. {pick.Station:0.###} på {pick.AlignmentName} (handle {br.Handle}) — {sizeNote} — {trimNote}";
+        handle = br.Handle.ToString();
     }
 
     /// <summary>
