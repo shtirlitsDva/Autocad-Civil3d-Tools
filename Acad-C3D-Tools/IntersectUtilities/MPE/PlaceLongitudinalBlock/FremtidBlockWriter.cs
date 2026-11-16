@@ -1,9 +1,9 @@
-using System.IO;
-
 using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
 
 using Autodesk.Civil.DatabaseServices;
+
+using CSharpFunctionalExtensions;
 
 using IntersectUtilities.PipelineNetworkSystem;
 using IntersectUtilities.PipelineNetworkSystem.PipelineSizeArray;
@@ -11,20 +11,20 @@ using IntersectUtilities.UtilsCommon;
 using IntersectUtilities.UtilsCommon.DataManager.CsvData;
 using IntersectUtilities.UtilsCommon.Enums;
 
+using Norsyn.AecPropertySets;
+
 using static IntersectUtilities.Utils;
 using static IntersectUtilities.UtilsCommon.Utils;
 
-using AcadApp = Autodesk.AutoCAD.ApplicationServices.Application;
 using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
+using Result = CSharpFunctionalExtensions.Result;
 
 namespace IntersectUtilities.MPE.PlaceLongitudinalBlock;
 
 /// <summary>
-/// Writes the chosen component block into the FV_Fremtid plan drawing. FV_Fremtid is never xrefed
-/// into the længdeprofil drawing, so it is reached one of two ways: if it is already open in this
-/// AutoCAD session the live document is edited directly, otherwise the file is side-loaded and saved.
-/// Nothing here prompts — every interactive decision is made before this runs, because an editor
-/// prompt under an open side-database transaction is a hazard.
+/// Writes a job's component blocks into FV_Fremtid. It runs inside PLACELONGITUDINALBLOCKFV, so FV_Fremtid is the
+/// active document, locked by its own command, and everything written is that command's one UNDO step. Nothing
+/// here prompts — every interactive decision was made in the længdeprofil.
 /// </summary>
 internal static class FremtidBlockWriter
 {
@@ -32,305 +32,103 @@ internal static class FremtidBlockWriter
     internal const string ComponentLayerName = "0-KOMPONENT";
 
     /// <summary>
-    /// Imports the block definition if needed, inserts a reference at the plan point, sizes it from
-    /// the pipe it lands on, and stamps BelongsToAlignment.
+    /// What sizing did to a block: the report's size note, and, when the block could not be sized, why its pipe is
+    /// not cut.
     /// </summary>
-    /// <param name="localDb">
-    /// The active længdeprofil drawing — it owns the Alignment the size array is built against.
-    /// </param>
-    internal static bool TryPlace(
-        string fremtidPath,
-        Database localDb,
-        IReadOnlyList<LongitudinalBlockPick> picks,
-        string blockName,
-        out string message)
+    private sealed record Sizing(string Note, Maybe<string> NotCutBecause)
     {
-        // A drawing open in AutoCAD holds its file locked, so side-loading and saving over it cannot
-        // work. When it is open in *this* session we can edit the live document instead — which is
-        // also the safer outcome, since saving a side copy would be silently overwritten by whatever
-        // the open session saves later.
-        Document? openDocument = FindOpenDocument(fremtidPath);
+        internal static Sizing Sized(string note) => new(note, Maybe<string>.None);
 
-        return openDocument is null
-            ? PlaceInSideDatabase(fremtidPath, localDb, picks, blockName, out message)
-            : PlaceInOpenDocument(openDocument, localDb, picks, blockName, out message);
+        internal static Sizing Unsized(string note, string reason) => new(note, Maybe.From(reason));
+    }
+
+    /// <summary>A block written by the first transaction, with what sizing did, waiting for the trim.</summary>
+    private sealed record Placed(ObjectId BlockId, string Handle, LongitudinalBlockPick Pick, Sizing Sizing);
+
+    /// <summary>
+    /// Places and sizes every block of the job in one transaction and commits it; regenerates FV_Fremtid, so AutoCAD
+    /// brings the sized dynamic blocks up to date; then, in a second transaction, trims the pipe at each sized
+    /// block's ports, in pick order, so each trim sees the previous one. Returns the report. A trim the drawing
+    /// refuses is a report line, not a failure; a REGEN AutoCAD refuses leaves every pipe untrimmed, with the
+    /// reason. Anything thrown here is a defect: it leaves the transaction it hits uncommitted, keeps what was
+    /// written before (the property-set definition update, and after the first commit the imported block
+    /// definition, the layer, the property sets the size lookup attached and the placed blocks), and passes to the
+    /// command's guard. One UNDO in FV_Fremtid removes all of it.
+    /// </summary>
+    internal static string Write(Document fremtid, FremtidJob job)
+    {
+        Database db = fremtid.Database;
+
+        // Must run outside a transaction — UpdatePropertySetDefinition no-ops when one is open.
+        PropertySetManager.UpdatePropertySetDefinition(db, PSetDefs.DefinedSets.DriPipelineData);
+
+        List<Placed> placed;
+        using (Transaction placeTx = db.TransactionManager.StartTransaction())
+        {
+            placed = PlaceAll(db, placeTx, job);
+            placeTx.Commit();
+        }
+
+        // A commit and FlushGraphics left a sized dynamic block at its default geometry (live round 1: a DN125
+        // BØJN KDLR VERT kept its 0.963 m default port spacing); a REGEN brought it up to date. Run as a nested
+        // command (Editor.Command), with no transaction open, it is also a command boundary, and it stays inside
+        // this command's one UNDO step. Without it nothing is trimmed: a cut at unsized ports is worse than none.
+        UnitResult<AecError> regenerated = AutoCadCall.Do("REGEN", () => fremtid.Editor.Command("_.REGEN"));
+
+        List<Maybe<string>> notes = [];
+        List<string> lines = regenerated.Match(
+            () => TrimAll(fremtid, db, placed, notes),
+            error => placed.Select(block => Line(block, $"rør ikke trimmet: {error.Message}")).ToList());
+
+        notes.Add(Redraw("FlushGraphics", () => fremtid.TransactionManager.FlushGraphics()));
+        notes.Add(Redraw("UpdateScreen", () => fremtid.Editor.UpdateScreen()));
+
+        return string.Join("\n", new[] { $"{job.BlockName} placeret {job.Picks.Count} gang(e) i FV_Fremtid:" }
+            .Concat(lines)
+            .Concat(notes.Choose().Distinct())
+            .Append("Husk at gemme FV_Fremtid. Én UNDO i FV_Fremtid fjerner hele placeringen."));
     }
 
     /// <summary>
-    /// The FV_Fremtid document open in this AutoCAD session, or null. Matched on the database's
-    /// filename, which is the full path for a saved drawing.
+    /// The second transaction: trims at every placed block, in pick order, and queues the changed entities for the
+    /// screen; a refused queue becomes a note.
     /// </summary>
-    private static Document? FindOpenDocument(string fremtidPath)
+    private static List<string> TrimAll(Document fremtid, Database db, IReadOnlyList<Placed> placed, List<Maybe<string>> notes)
     {
-        foreach (Document document in AcadApp.DocumentManager)
-        {
-            string? filename = document.Database?.Filename;
-            if (!string.IsNullOrEmpty(filename) &&
-                string.Equals(filename, fremtidPath, StringComparison.OrdinalIgnoreCase))
-            {
-                return document;
-            }
-        }
-
-        return null;
+        using Transaction trimTx = db.TransactionManager.StartTransaction();
+        GraphLinks graph = new(db, trimTx);
+        List<string> lines = placed.Select(block => TrimAt(db, trimTx, block, graph)).ToList();
+        notes.Add(Redraw("QueueForGraphicsFlush", () => fremtid.TransactionManager.QueueForGraphicsFlush()));
+        trimTx.Commit();
+        return lines;
     }
+
+    /// <summary>A screen update AutoCAD refused, as a report note; the write itself is not affected.</summary>
+    private static Maybe<string> Redraw(string what, Action call) =>
+        AutoCadCall.Do(what, call).Match(
+            () => Maybe<string>.None,
+            error => Maybe.From($"BEMÆRK: skærmen er måske ikke opdateret ({error.Message}) — brug REGEN."));
 
     /// <summary>
-    /// Edits FV_Fremtid in place while it is open in this session. The drawing is left dirty on
-    /// purpose — saving another document from under the user is worse than telling them to save.
+    /// Inserts and sizes every block and stamps BelongsToAlignment. The pipeline size array is cached per
+    /// alignment: building it walks all FJV entities on that alignment, so re-deriving it for each click would be
+    /// pure waste when placing several components along the same pipe.
     /// </summary>
-    private static bool PlaceInOpenDocument(
-        Document document,
-        Database localDb,
-        IReadOnlyList<LongitudinalBlockPick> picks,
-        string blockName,
-        out string message)
-    {
-        Database db = document.Database;
-
-        try
-        {
-            // Required because we are writing to a document other than the one running the command.
-            using DocumentLock documentLock = document.LockDocument();
-
-            PropertySetManager.UpdatePropertySetDefinition(db, PSetDefs.DefinedSets.DriPipelineData);
-
-            List<string> reports;
-            using (Transaction tx = db.TransactionManager.StartTransaction())
-            {
-                reports = WriteAll(db, tx, localDb, picks, blockName);
-                tx.Commit();
-            }
-
-            message =
-                $"{Describe(blockName, picks, reports)}\n" +
-                "Skrevet direkte i den ÅBNE FV_Fremtid — husk at gemme den.";
-            return true;
-        }
-        catch (System.Exception exception)
-        {
-            // Deliberately NOT AbortGracefully: that would dispose the Database of a live document.
-            prdDbg(exception);
-            message = $"ADVARSEL: blokken blev IKKE placeret i FV_Fremtid. {exception.Message}";
-            return false;
-        }
-    }
-
-    /// <summary>
-    /// Side-loads FV_Fremtid, writes, and saves. Opened with the FileShare overload rather than via
-    /// DataManager.Fremtid(), which uses FileOpenMode.OpenForReadAndAllShare — a read-only open whose
-    /// SaveAs fails with eFilerError.
-    /// </summary>
-    private static bool PlaceInSideDatabase(
-        string fremtidPath,
-        Database localDb,
-        IReadOnlyList<LongitudinalBlockPick> picks,
-        string blockName,
-        out string message)
-    {
-        if (TryFindForeignLock(fremtidPath, out string lockOwner))
-        {
-            message = ForeignLockMessage(fremtidPath, lockOwner);
-            return false;
-        }
-
-        // Snapshot the file so a write landing between our read and our save is caught rather than
-        // silently overwritten. Re-checked immediately before the save in SaveOverwriting.
-        DateTime stampBefore;
-        long lengthBefore;
-        try
-        {
-            FileInfo info = new(fremtidPath);
-            stampBefore = info.LastWriteTimeUtc;
-            lengthBefore = info.Length;
-        }
-        catch (System.Exception exception)
-        {
-            message = $"Kan ikke læse filoplysninger for FV_Fremtid: {exception.Message}\n{fremtidPath}";
-            return false;
-        }
-
-        // Deliberately not a `using` declaration: AbortGracefully owns disposal on the failure path,
-        // and combining the two double-disposes on every path.
-        Database fremDb = new(false, true);
-        List<string> reports;
-
-        try
-        {
-            fremDb.ReadDwgFile(fremtidPath, FileShare.ReadWrite, false, "");
-
-            // Must run outside a transaction — UpdatePropertySetDefinition no-ops when one is open.
-            PropertySetManager.UpdatePropertySetDefinition(fremDb, PSetDefs.DefinedSets.DriPipelineData);
-
-            using (Transaction fremTx = fremDb.TransactionManager.StartTransaction())
-            {
-                // Every placement goes into ONE transaction and ONE save — on a network drive a save
-                // per click would dominate the run time.
-                reports = WriteAll(fremDb, fremTx, localDb, picks, blockName);
-                fremTx.Commit();
-            }
-
-            // Release the handle on the source DWG before saving; the swap below renames the
-            // original, which cannot happen while the read handle is still open.
-            fremDb.CloseInput(true);
-            SaveOverwriting(fremDb, fremtidPath, stampBefore, lengthBefore);
-        }
-        catch (System.Exception exception)
-        {
-            // The transaction's `using` block already aborted it, so AbortGracefully only disposes.
-            AbortGracefully(exception, fremDb);
-            message =
-                $"ADVARSEL: blokken blev IKKE gemt i FV_Fremtid. {exception.Message}\n" +
-                $"Er tegningen åben i en anden AutoCAD-session? Luk den, eller åbn den i DENNE " +
-                $"session — så skriver kommandoen direkte i den åbne tegning.\n{fremtidPath}";
-            return false;
-        }
-
-        fremDb.Dispose();
-        message = Describe(blockName, picks, reports);
-        return true;
-    }
-
-    /// <summary>
-    /// True when FV_Fremtid is held open by an AutoCAD session OTHER than this one. AutoCAD guards
-    /// an open drawing with an advisory .dwl sidecar, not an OS lock, so ReadDwgFile and SaveAs both
-    /// SUCCEED against a drawing another session has open — and that session's own save then discards
-    /// this write without a word. The sidecar is the only signal there is, so it is what we gate on.
-    /// </summary>
-    internal static bool TryFindForeignLock(string fremtidPath, out string owner)
-    {
-        owner = string.Empty;
-
-        // Open in THIS session is not a conflict: TryPlace edits the live document instead.
-        if (FindOpenDocument(fremtidPath) is not null)
-        {
-            return false;
-        }
-
-        string dwlPath = Path.ChangeExtension(fremtidPath, ".dwl");
-        if (!File.Exists(dwlPath))
-        {
-            return false;
-        }
-
-        try
-        {
-            // The .dwl's first line is the owner's login name; the fuller record lives in .dwl2.
-            using FileStream stream = new(dwlPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-            using StreamReader reader = new(stream);
-            owner = (reader.ReadLine() ?? string.Empty).Trim();
-        }
-        catch (System.Exception exception)
-        {
-            // An unreadable sidecar still means someone has the drawing open.
-            prdDbg($"Kunne ikke læse {dwlPath}: {exception.Message}");
-        }
-
-        return true;
-    }
-
-    internal static string ForeignLockMessage(string fremtidPath, string owner) =>
-        (owner.Length > 0
-            ? $"FV_Fremtid er åben i en anden AutoCAD-session ({owner})."
-            : "FV_Fremtid er åben i en anden AutoCAD-session.") +
-        "\nEn sidegemning ville blive overskrevet uden varsel, når den session gemmer, så der er " +
-        "IKKE skrevet noget.\nLuk tegningen der, eller åbn den i DENNE session — så skriver " +
-        $"kommandoen direkte i den åbne tegning.\n{fremtidPath}\n" +
-        "(Er AutoCAD crashet, kan .dwl-filen være efterladt — slet den manuelt.)";
-
-    /// <summary>
-    /// Saves the side-loaded database back over FV_Fremtid without ever leaving the original
-    /// missing. SaveAs(bBakAndRename: true) renames the original to .bak BEFORE writing, so a save
-    /// that fails midway takes the original with it — and the transaction is already committed, so
-    /// nothing can be rolled back. Writing a temp DWG in the same folder and swapping it in with
-    /// File.Replace keeps the original in place until a complete file exists, and hands the previous
-    /// content to the .bak in the same step.
-    /// </summary>
-    private static void SaveOverwriting(
-        Database fremDb,
-        string fremtidPath,
-        DateTime stampBefore,
-        long lengthBefore)
-    {
-        // As late as possible: the drawing can be changed elsewhere while the user is picking.
-        FileInfo info = new(fremtidPath);
-        if (info.LastWriteTimeUtc != stampBefore || info.Length != lengthBefore)
-        {
-            throw new System.Exception(
-                "FV_Fremtid er blevet ændret af en anden, efter kommandoen læste den. " +
-                "Intet er gemt — kør kommandoen igen.");
-        }
-
-        string directory = Path.GetDirectoryName(fremtidPath)!;
-        string tempPath = Path.Combine(directory, $"~plb-{Guid.NewGuid():N}.dwg");
-        string backupPath = Path.ChangeExtension(fremtidPath, ".bak");
-
-        try
-        {
-            fremDb.SaveAs(tempPath, false, DwgVersion.Current, fremDb.SecurityParameters);
-
-            // Atomic on NTFS: either the old file or the complete new one is in place, never neither.
-            File.Replace(tempPath, fremtidPath, backupPath);
-        }
-        catch
-        {
-            TryDelete(tempPath);
-            throw;
-        }
-    }
-
-    private static void TryDelete(string path)
-    {
-        try
-        {
-            if (File.Exists(path))
-            {
-                File.Delete(path);
-            }
-        }
-        catch (System.Exception exception)
-        {
-            prdDbg($"Kunne ikke slette midlertidig fil {path}: {exception.Message}");
-        }
-    }
-
-    /// <summary>
-    /// Writes every placement in one transaction. The pipeline size array is cached per alignment:
-    /// building it walks all FJV entities on that alignment, so re-deriving it for each click would
-    /// be pure waste when placing several components along the same pipe.
-    /// </summary>
-    private static List<string> WriteAll(
-        Database db,
-        Transaction tx,
-        Database localDb,
-        IReadOnlyList<LongitudinalBlockPick> picks,
-        string blockName)
+    private static List<Placed> PlaceAll(Database db, Transaction tx, FremtidJob job)
     {
         Dictionary<string, IPipelineSizeArrayV2?> sizeArrays = [];
-        List<string> reports = [];
-
-        foreach (LongitudinalBlockPick pick in picks)
-        {
-            WriteBlock(db, tx, localDb, pick, blockName, sizeArrays, out string handle, out string sizeNote);
-            reports.Add($"  st. {pick.Station:0.###} på {pick.AlignmentName} (handle {handle}) — {sizeNote}");
-        }
-
-        return reports;
+        return job.Picks
+            .Select(pick => Place(db, tx, job.Profile.Database, pick, job.BlockName, sizeArrays))
+            .ToList();
     }
 
-    /// <summary>
-    /// The actual edit, identical whichever database it runs against. Requires an open transaction
-    /// on <paramref name="db"/>.
-    /// </summary>
-    private static void WriteBlock(
+    private static Placed Place(
         Database db,
         Transaction tx,
         Database localDb,
         LongitudinalBlockPick pick,
         string blockName,
-        Dictionary<string, IPipelineSizeArrayV2?> sizeArrays,
-        out string handle,
-        out string sizeNote)
+        Dictionary<string, IPipelineSizeArrayV2?> sizeArrays)
     {
         db.CheckOrCreateLayer(ComponentLayerName, 0);
 
@@ -348,16 +146,40 @@ internal static class FremtidBlockWriter
         BlockReference br = db.CreateBlockWithAttributes(blockName, pick.PlanPoint, pick.Rotation);
         br.Layer = ComponentLayerName;
 
-        ApplySizeAtStation(db, tx, localDb, br, pick, sizeArrays, out sizeNote);
+        Sizing sizing = SizeAtStation(db, tx, localDb, br, pick, sizeArrays);
 
         PropertySetManager psmPipeline = new(db, PSetDefs.DefinedSets.DriPipelineData);
         PSetDefs.DriPipelineData pipelineDef = new();
         psmPipeline.WritePropertyString(br, pipelineDef.BelongsToAlignment, pick.AlignmentName);
 
+        return new Placed(br.ObjectId, br.Handle.ToString(), pick, sizing);
+    }
+
+    /// <summary>
+    /// Trims the pipe at the ports of a block placed by the committed first transaction and brought up to date by
+    /// the REGEN, opened afresh here, so the ports are those of the sized block; returns the placement's report line.
+    /// A block that could not be sized is not cut: its ports are the default geometry's.
+    /// </summary>
+    private static string TrimAt(Database db, Transaction tx, Placed placed, GraphLinks graph)
+    {
+        // Forced open, as the block was writable while the first transaction made it, even on a locked layer.
+        BlockReference br = (BlockReference)tx.GetObject(placed.BlockId, OpenMode.ForWrite, false, true);
+
+        string trimNote = placed.Sizing.NotCutBecause.Match(
+            reason => $"rør ikke trimmet: {reason}",
+            () => PipeTrimmer.Trim(db, tx, br, placed.Pick.AlignmentName, graph).Match(
+                trimmed => $"rør trimmet: {trimmed}",
+                error => $"rør ikke trimmet: {error.Message}"));
+
+        // After the trim, or a new pipe piece would be drawn over the block.
         MoveToTop(db, tx, br.Id);
 
-        handle = br.Handle.ToString();
+        return Line(placed, trimNote);
     }
+
+    private static string Line(Placed placed, string trimNote) =>
+        $"  st. {placed.Pick.Station:0.###} på {placed.Pick.AlignmentName} (handle {placed.Handle}) — " +
+        $"{placed.Sizing.Note} — {trimNote}";
 
     /// <summary>
     /// Lifts the new block to the top of the draw order. FJV pipes are drawn with a large global
@@ -371,27 +193,20 @@ internal static class FremtidBlockWriter
         drawOrder.MoveToTop(new ObjectIdCollection { entityId });
     }
 
-    private static string Describe(
-        string blockName,
-        IReadOnlyList<LongitudinalBlockPick> picks,
-        List<string> reports) =>
-        $"{blockName} placeret {picks.Count} gang(e) i FV_Fremtid:\n" +
-        string.Join("\n", reports);
-
     /// <summary>
     /// Sizes the new block from the pipeline size array — the same construction CREATEOFFSETPROFILES
     /// uses — so the size is the one in force AT THE STATION, correct across size changes rather than
-    /// merely whatever polyline happens to be nearest. A size that cannot be resolved is a warning,
-    /// not a failure: the block stays placed at its defaults for the user to correct in plan.
+    /// merely whatever polyline happens to be nearest. A block that could not be sized stays placed at
+    /// its defaults for the user to correct in plan, and is not cut: its default ports are not the
+    /// sized block's. A block without size parameters (fixed geometry) is sized as it is.
     /// </summary>
-    private static void ApplySizeAtStation(
+    private static Sizing SizeAtStation(
         Database fremDb,
         Transaction fremTx,
         Database localDb,
         BlockReference br,
         LongitudinalBlockPick pick,
-        Dictionary<string, IPipelineSizeArrayV2?> sizeArrays,
-        out string note)
+        Dictionary<string, IPipelineSizeArrayV2?> sizeArrays)
     {
         // A definition already present in FV_Fremtid is never refreshed — CheckOrImportBlockRecord
         // imports only when the name is ABSENT — so a drawing carrying an older VERSION of the block
@@ -399,11 +214,11 @@ internal static class FremtidBlockWriter
         // generic "no parameters to set" note it would otherwise produce.
         if (!CatalogueHasRowForVersion(br, out string blockVersion))
         {
-            note =
+            return Sizing.Unsized(
                 $"ADVARSEL: blokdefinitionen '{br.RealName()}' i FV_Fremtid har VERSION " +
                 $"'{blockVersion}', som ikke findes i FJV Dynamiske Komponenter.csv — INGEN " +
-                $"dimensioner er sat. Opdatér blokken i FV_Fremtid fra Symboler.dwg.";
-            return;
+                $"dimensioner er sat. Opdatér blokken i FV_Fremtid fra Symboler.dwg.",
+                $"blokken kunne ikke dimensioneres (VERSION '{blockVersion}' findes ikke i kataloget)");
         }
 
         if (!sizeArrays.TryGetValue(pick.AlignmentName, out IPipelineSizeArrayV2? sizeArray))
@@ -414,16 +229,18 @@ internal static class FremtidBlockWriter
 
         if (sizeArray is null)
         {
-            note = $"BEMÆRK: ingen rør fundet for {pick.AlignmentName} — blokken har standardværdier.";
-            return;
+            return Sizing.Unsized(
+                $"BEMÆRK: ingen rør fundet for {pick.AlignmentName} — blokken har standardværdier.",
+                $"blokken kunne ikke dimensioneres (ingen rør fundet for {pick.AlignmentName})");
         }
 
         SizeEntryV2 size = sizeArray.GetSizeAtStation(pick.Station);
 
         if (size.DN == 0)
         {
-            note = $"BEMÆRK: kunne ikke bestemme dimension ved st. {pick.Station:0.###} — standardværdier.";
-            return;
+            return Sizing.Unsized(
+                $"BEMÆRK: kunne ikke bestemme dimension ved st. {pick.Station:0.###} — standardværdier.",
+                $"blokken kunne ikke dimensioneres (ingen dimension ved st. {pick.Station:0.###})");
         }
 
         // Frem/Retur are both "Enkelt" as far as a component block is concerned; same normalisation
@@ -433,23 +250,38 @@ internal static class FremtidBlockWriter
             : size.Type;
 
         // The dynamic parameter names differ per block, so they are read from the catalogue rather
-        // than guessed — see TrySetCsvDrivenProperty.
-        List<string> applied = [];
-        if (TrySetCsvDrivenProperty(br, DynamicProperty.DN1, size.DN.ToString())) applied.Add($"DN{size.DN}");
-        if (TrySetCsvDrivenProperty(br, DynamicProperty.System, type.ToString())) applied.Add(type.ToString());
-        if (TrySetCsvDrivenProperty(br, DynamicProperty.Serie, size.Series.ToString())) applied.Add(size.Series.ToString());
+        // than guessed — see SetCsvDrivenProperty. All three are tried, in this order.
+        List<Result<Maybe<string>, AecError>> results =
+        [
+            SetCsvDrivenProperty(br, DynamicProperty.DN1, size.DN.ToString(), $"DN{size.DN}"),
+            SetCsvDrivenProperty(br, DynamicProperty.System, type.ToString(), type.ToString()),
+            SetCsvDrivenProperty(br, DynamicProperty.Serie, size.Series.ToString(), size.Series.ToString()),
+        ];
         br.AttSync();
 
-        note = applied.Count == 0
+        List<string> applied = results.Select(result => result.Match(label => label, _ => Maybe<string>.None)).Choose().ToList();
+        List<string> failed = results.Select(result => result.Match(_ => Maybe<string>.None, error => Maybe.From(error.Message))).Choose().ToList();
+
+        if (failed.Count > 0)
+        {
+            string reasons = string.Join("; ", failed);
+            return Sizing.Unsized(
+                $"ADVARSEL: dimensioneringen ved st. {pick.Station:0.###} fejlede ({reasons})" +
+                (applied.Count > 0 ? $"; sat: {string.Join(" ", applied)}." : "."),
+                $"blokken kunne ikke dimensioneres ({reasons})");
+        }
+
+        return Sizing.Sized(applied.Count == 0
             ? $"BEMÆRK: {br.RealName()} har ingen dimensionsparametre at sætte " +
               $"(st. {pick.Station:0.###} er DN{size.DN} {size.System} {type} {size.Series})."
-            : $"Sat fra dimensionsarray ved st. {pick.Station:0.###}: {string.Join(" ", applied)}.";
+            : $"Sat fra dimensionsarray ved st. {pick.Station:0.###}: {string.Join(" ", applied)}.");
     }
 
     /// <summary>
     /// Builds the pipeline size array for one alignment, or null when the plan drawing holds no FJV
-    /// entities for it. Entities come from FV_Fremtid, the alignment from the active længdeprofil
-    /// drawing — the same cross-database pairing CREATEOFFSETPROFILES uses.
+    /// entities for it. Entities come from FV_Fremtid, the alignment from the længdeprofil drawing,
+    /// read without a lock — the same cross-database pairing CREATEOFFSETPROFILES uses. It runs here,
+    /// inside FV_Fremtid's command, because reading the entities attaches property sets to them.
     /// </summary>
     private static IPipelineSizeArrayV2? BuildSizeArray(
         Database fremDb,
@@ -478,14 +310,6 @@ internal static class FremtidBlockWriter
     }
 
     /// <summary>
-    /// Sets a dynamic block parameter, resolving its NAME from FJV Dynamiske Komponenter.csv rather
-    /// than assuming one. The catalogue cell for a column is either a literal, or <c>$Parameter</c>
-    /// naming the dynamic property that holds the value, or <c>#Attribute</c> — which is exactly how
-    /// <see cref="ComponentSchedule.ReadDynamicCsvProperty"/> reads it back. Blocks disagree on the
-    /// names (DN vs DN1 vs Dim), so hard-coding them silently sizes nothing on most components.
-    /// Returns false when this block has no settable parameter for the column.
-    /// </summary>
-    /// <summary>
     /// True when the catalogue holds a row matching this reference's Navn AND its VERSION attribute
     /// — the exact pair <see cref="ComponentSchedule.ReadDynamicCsvProperty"/> matches on. Mirrors
     /// that comparison (ordinal, both columns) so this check cannot disagree with the lookup it
@@ -503,7 +327,18 @@ internal static class FremtidBlockWriter
             CsvDataSource.Col(row, FjvDynamicComponents.Columns.Version) == version);
     }
 
-    private static bool TrySetCsvDrivenProperty(BlockReference br, DynamicProperty property, string value)
+    /// <summary>
+    /// Sets a dynamic block parameter, resolving its NAME from FJV Dynamiske Komponenter.csv rather
+    /// than assuming one. The catalogue cell for a column is either a literal, or <c>$Parameter</c>
+    /// naming the dynamic property that holds the value, or <c>#Attribute</c> — which is exactly how
+    /// <see cref="ComponentSchedule.ReadDynamicCsvProperty"/> reads it back. Blocks disagree on the
+    /// names (DN vs DN1 vs Dim), so hard-coding them silently sizes nothing on most components.
+    /// Success with <paramref name="label"/> when set; success with None when the catalogue names no
+    /// parameter for the column (fixed for this block); a failure when the block has no such parameter
+    /// or AutoCAD refuses the value — the size was not applied. A failure never loses the placement.
+    /// </summary>
+    private static Result<Maybe<string>, AecError> SetCsvDrivenProperty(
+        BlockReference br, DynamicProperty property, string value, string label)
     {
         // parseProperty: false gives the raw catalogue cell — the spec — instead of a resolved value.
         string spec = br.ReadDynamicCsvProperty(property, false);
@@ -512,21 +347,22 @@ internal static class FremtidBlockWriter
         // pattern. Neither is something we can write back.
         if (string.IsNullOrEmpty(spec) || !spec.StartsWith('$') || spec.Contains('{'))
         {
-            return false;
+            return Result.Success<Maybe<string>, AecError>(Maybe<string>.None);
         }
 
         string parameterName = spec[1..];
 
-        try
-        {
-            SetDynBlockPropertyObject(br, parameterName, value);
-            return true;
-        }
-        catch (System.Exception exception)
-        {
-            // A size the block cannot represent must not lose the placement.
-            prdDbg($"Kunne ikke sætte {parameterName}={value} på {br.RealName()}: {exception.Message}");
-            return false;
-        }
+        return DynamicPropertyNamed(br, parameterName)
+            .ToResult(AecError.Drawing($"{br.RealName()} har ingen parameter {parameterName}"))
+            .Bind(parameter => AutoCadCall
+                .Do($"sæt {parameterName}={value}", () => parameter.Value = value)
+                .Map(() => Maybe.From(label)));
     }
+
+    private static Maybe<DynamicBlockReferenceProperty> DynamicPropertyNamed(BlockReference br, string name) =>
+        br.IsDynamicBlock
+            ? br.DynamicBlockReferencePropertyCollection
+                .Cast<DynamicBlockReferenceProperty>()
+                .TryFirst(parameter => parameter.PropertyName == name)
+            : Maybe<DynamicBlockReferenceProperty>.None;
 }
