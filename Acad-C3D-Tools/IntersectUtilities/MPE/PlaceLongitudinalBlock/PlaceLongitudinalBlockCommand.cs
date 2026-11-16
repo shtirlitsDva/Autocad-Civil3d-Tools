@@ -5,8 +5,12 @@ using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
 using Autodesk.AutoCAD.Runtime;
 
+using CSharpFunctionalExtensions;
+
 using IntersectUtilities.MPE.PlaceLongitudinalBlock;
 using IntersectUtilities.UtilsCommon.DataManager;
+
+using Norsyn.AecPropertySets;
 
 using static IntersectUtilities.UtilsCommon.Utils;
 
@@ -18,8 +22,24 @@ public partial class Intersect
     /// <summary>
     /// Places a component block in the FV_Fremtid plan drawing from a click in a længdeprofil: the station is
     /// resolved from the picked point and a component is chosen from FJV Dynamiske Komponenter.csv. Answer Multiple
-    /// to pick all locations first and place the same block at each. The block is inserted loose on layer
-    /// 0-KOMPONENT - the run polyline is not cut and no welds are generated.
+    /// to pick all locations first and place the same block at each. FV_Fremtid must be open in the same Civil 3D
+    /// session for writing (not read-only) and not busy with a command; otherwise the command names the FV_Fremtid
+    /// file it expects and writes nothing. After the block choice the command hands the placements to
+    /// PLACELONGITUDINALBLOCKFV and ends: AutoCAD switches to FV_Fremtid, writes there as FV_Fremtid's own command,
+    /// then switches back to the længdeprofil and repeats the report. One UNDO in FV_Fremtid removes the whole run.
+    /// The block is inserted on layer 0-KOMPONENT and sized from the pipe at the station; after that is committed and
+    /// FV_Fremtid regenerated (REGEN), the FJV pipe of its alignment is cut at the SIZED block's ports (its MuffeIntern blocks lying at most 0.05 m
+    /// from the pipe): the stretch between the two outermost ports is deleted, and across a joint each polyline is
+    /// trimmed back to its own port. The pieces keep the pipe's layer, colour, linetype, width and property sets;
+    /// FJV_fremtid Length becomes each piece's own length, and DriGraph ConnectedEntities links the pieces' cut ends
+    /// to the block and moves the pipe's other links to the piece that holds them. The report line gives the length
+    /// cut out of each polyline ("0,134 m skåret"). With fewer than two ports on the pipe (end cap, plan bend,
+    /// bonded pipes, no pipe at the station) the pipe is left alone and the placement's report line ends with
+    /// "rør ikke trimmet:" and the reason. A block that could not be sized (its VERSION missing from the catalogue,
+    /// no pipe or no size at the station, or a size parameter the block lacks or AutoCAD refuses) stays placed at its
+    /// defaults and its pipe is not cut: "rør ikke trimmet: blokken kunne ikke dimensioneres (…)". A block without
+    /// size parameters (fixed geometry) is cut as it is. In Multiple mode all blocks are placed first, then each trims the pipe as
+    /// the previous one left it. No welds are generated. FV_Fremtid is not saved.
     /// </summary>
     /// <category>MPE</category>
     [CommandMethod("PLACELONGITUDINALBLOCK", CommandFlags.Modal)]
@@ -125,8 +145,8 @@ public partial class Intersect
             return;
         }
 
-        FremtidBlockWriter.TryPlace(fremtidPath, localDb, picks, blockName, out string writeMessage);
-        editor.WriteMessage($"\n{writeMessage}");
+        // The write runs as FV_Fremtid's own command once this one has ended.
+        editor.WriteMessage($"\n{FremtidHandoff.Submit(new FremtidJob(Guid.NewGuid(), fremtidPath, document, picks, blockName))}");
     }
 
     private static void Report(Editor editor, LongitudinalBlockPick pick)
@@ -137,7 +157,8 @@ public partial class Intersect
 
     /// <summary>
     /// Resolves the project and verifies every external dependency: the block library, the component
-    /// catalogue, and that FV_Fremtid exists. Nothing here touches the drawing.
+    /// catalogue, and that FV_Fremtid exists and is open in this session for writing, idle. Nothing
+    /// here touches a drawing.
     /// </summary>
     private static bool TryPreflight(out string fremtidPath, out string message)
     {
@@ -180,19 +201,11 @@ public partial class Intersect
             return false;
         }
 
-        // FV_Fremtid open in ANOTHER session has to be caught here, before the user invests any
-        // picking. AutoCAD's .dwl is advisory, not an OS lock, so a side-save against it SUCCEEDS
-        // and is then silently discarded when that session saves — the save failing is not the
-        // safety net it looks like. Open in THIS session is fine: the write goes to the live
-        // document instead. Re-checked at save time, since it can be opened while picking.
-        if (FremtidBlockWriter.TryFindForeignLock(path, out string lockOwner))
-        {
-            message = FremtidBlockWriter.ForeignLockMessage(path, lockOwner);
-            return false;
-        }
-
-        fremtidPath = path;
-        message = string.Empty;
-        return true;
+        // Before the user invests any picking. Checked again when the job is handed over, since
+        // FV_Fremtid can be closed or start a command meanwhile.
+        Result<Document, AecError> fremtid = FremtidHandoff.OpenForWriting(path);
+        message = fremtid.Match(_ => string.Empty, error => error.Message);
+        fremtidPath = fremtid.Match(_ => path, _ => string.Empty);
+        return fremtid.IsSuccess;
     }
 }
